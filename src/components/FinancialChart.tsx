@@ -42,6 +42,7 @@ interface FinancialChartProps {
     datasets: Dataset[];
     yAxisLabel: string;
     xAxisLabel: string;
+    useLogScale?: boolean;
 }
 
 const FinancialChart: React.FC<FinancialChartProps> = ({
@@ -49,7 +50,8 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
     labels,
     datasets,
     yAxisLabel,
-    xAxisLabel
+    xAxisLabel,
+    useLogScale = false
 }) => {
     const chartRef = useRef<ChartJSOrUndefined<"line">>(null);
 
@@ -67,7 +69,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
         } else if (value >= 100000) {
             return `₹${(value / 100000).toFixed(2)} L`;
         }
-        return `₹${value.toLocaleString()}`;
+        return `₹${Math.round(value).toLocaleString('en-IN')}`;
     };
 
     const defaultOptions: ChartOptions<'line'> = {
@@ -103,12 +105,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
                             label += ': ';
                         }
                         if (context.parsed.y !== null) {
-                            label += new Intl.NumberFormat('en-US', {
-                                style: 'currency',
-                                currency: 'USD',
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 0
-                            }).format(context.parsed.y);
+                            label += formatCurrency(context.parsed.y);
                         }
                         return label;
                     }
@@ -139,6 +136,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
                 }
             },
             y: {
+                type: useLogScale ? 'logarithmic' : 'linear',
                 grid: {
                     color: '#e2e8f0',
                     tickColor: '#e2e8f0'
@@ -177,8 +175,8 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
                 capBezierPoints: true
             },
             point: {
-                radius: 3,
-                hoverRadius: 6,
+                radius: 2,
+                hoverRadius: 4,
                 borderWidth: 2,
                 backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 hoverBackgroundColor: 'rgba(255, 255, 255, 1)',
@@ -186,15 +184,15 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
             }
         },
         animation: {
-            duration: 2000,
-            easing: 'easeInOutQuart'
+            duration: 1000,
+            easing: 'easeOutQuart'
         },
         layout: {
             padding: {
-                top: 8,
-                right: 16,
-                bottom: 8,
-                left: 16
+                top: 4,
+                right: 8,
+                bottom: 4,
+                left: 8
             }
         }
     };

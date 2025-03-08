@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import FinancialChart from './FinancialChart';
+import styles from './PowerOfSavings.module.css';
 
 interface YearlyData {
     age: number;
@@ -16,10 +17,10 @@ interface YearlyData {
 const PowerOfSavings: React.FC = () => {
     const [currentAge, setCurrentAge] = useState<number>(25);
     const [retirementAge, setRetirementAge] = useState<number>(60);
-    const [initialSavings, setInitialSavings] = useState<number>(500000);
-    const [annualSavings, setAnnualSavings] = useState<number>(300000);
-    const [returnRate, setReturnRate] = useState<number>(10);
-    const [savingsGrowthRate, setSavingsGrowthRate] = useState<number>(15);
+    const [initialSavings, setInitialSavings] = useState<number>(10000000); // 1 Crore
+    const [annualSavings, setAnnualSavings] = useState<number>(1200000); // 12 Lakhs
+    const [returnRate, setReturnRate] = useState<number>(7); // Conservative estimate for Indian markets
+    const [savingsGrowthRate, setSavingsGrowthRate] = useState<number>(6); // Based on Indian inflation
     const [yearlyData, setYearlyData] = useState<YearlyData[]>([]);
 
     const calculateProjection = useCallback(() => {
@@ -77,7 +78,7 @@ const PowerOfSavings: React.FC = () => {
         } else if (amount >= 100000) {
             return `₹${(amount / 100000).toFixed(2)} L`;
         }
-        return `₹${amount.toLocaleString()}`;
+        return `₹${Math.round(amount).toLocaleString('en-IN')}`;
     };
 
     const chartData = {
@@ -129,21 +130,21 @@ const PowerOfSavings: React.FC = () => {
     };
 
     return (
-        <div className="visualization-container">
+        <div className={styles['visualization-container']}>
             <h2>Power of Consistent Savings</h2>
-            <p className="explanation">
+            <p className={styles.explanation}>
                 See how your wealth grows through a combination of existing savings, 
                 regular contributions that increase over time, and investment returns. 
                 This demonstrates why both saving consistently and investing wisely 
                 are crucial for long-term wealth building.
             </p>
 
-            <div className="interactive-section">
-                <div className="input-grid">
-                    <div className="input-group">
+            <div className={styles['interactive-section']}>
+                <div className={styles['input-grid']}>
+                    <div className={styles['input-group']}>
                         <label htmlFor="currentAge">
                             Current Age
-                            <span className="input-value">{currentAge}</span>
+                            <span className={styles['input-value']}>{currentAge}</span>
                         </label>
                         <input
                             type="range"
@@ -155,10 +156,10 @@ const PowerOfSavings: React.FC = () => {
                         />
                     </div>
 
-                    <div className="input-group">
+                    <div className={styles['input-group']}>
                         <label htmlFor="retirementAge">
                             Retirement Age
-                            <span className="input-value">{retirementAge}</span>
+                            <span className={styles['input-value']}>{retirementAge}</span>
                         </label>
                         <input
                             type="range"
@@ -170,124 +171,106 @@ const PowerOfSavings: React.FC = () => {
                         />
                     </div>
 
-                    <div className="input-group">
+                    <div className={styles['input-group']}>
                         <label htmlFor="initialSavings">
                             Initial Savings
-                            <span className="input-value">
-                                {new Intl.NumberFormat('en-US', {
-                                    style: 'currency',
-                                    currency: 'USD',
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0
-                                }).format(initialSavings)}
-                            </span>
+                            <span className={styles['input-value']}>{formatCurrency(initialSavings)}</span>
                         </label>
                         <input
-                            type="number"
+                            type="range"
                             id="initialSavings"
-                            min="0"
-                            step="1000"
+                            min="100000"
+                            max="100000000"
+                            step="100000"
                             value={initialSavings}
-                            onChange={(e) => setInitialSavings(parseInt(e.target.value) || 0)}
+                            onChange={(e) => setInitialSavings(parseInt(e.target.value))}
                         />
                     </div>
 
-                    <div className="input-group">
+                    <div className={styles['input-group']}>
                         <label htmlFor="annualSavings">
                             Annual Savings
-                            <span className="input-value">
-                                {new Intl.NumberFormat('en-US', {
-                                    style: 'currency',
-                                    currency: 'USD',
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0
-                                }).format(annualSavings)}
-                            </span>
+                            <span className={styles['input-value']}>{formatCurrency(annualSavings)}</span>
                         </label>
                         <input
-                            type="number"
+                            type="range"
                             id="annualSavings"
-                            min="0"
-                            step="1000"
+                            min="100000"
+                            max="10000000"
+                            step="100000"
                             value={annualSavings}
-                            onChange={(e) => setAnnualSavings(parseInt(e.target.value) || 0)}
+                            onChange={(e) => setAnnualSavings(parseInt(e.target.value))}
                         />
                     </div>
 
-                    <div className="input-group">
+                    <div className={styles['input-group']}>
                         <label htmlFor="returnRate">
-                            Investment Return Rate (%)
-                            <span className="input-value">{returnRate}%</span>
+                            Expected Return Rate (%)
+                            <span className={styles['input-value']}>{returnRate}%</span>
                         </label>
                         <input
                             type="range"
                             id="returnRate"
                             min="1"
-                            max="20"
+                            max="15"
+                            step="0.1"
                             value={returnRate}
-                            onChange={(e) => setReturnRate(parseInt(e.target.value))}
+                            onChange={(e) => setReturnRate(parseFloat(e.target.value))}
                         />
                     </div>
 
-                    <div className="input-group">
+                    <div className={styles['input-group']}>
                         <label htmlFor="savingsGrowthRate">
                             Annual Savings Growth Rate (%)
-                            <span className="input-value">{savingsGrowthRate}%</span>
+                            <span className={styles['input-value']}>{savingsGrowthRate}%</span>
                         </label>
                         <input
                             type="range"
                             id="savingsGrowthRate"
                             min="0"
-                            max="20"
+                            max="15"
+                            step="0.1"
                             value={savingsGrowthRate}
-                            onChange={(e) => setSavingsGrowthRate(parseInt(e.target.value))}
+                            onChange={(e) => setSavingsGrowthRate(parseFloat(e.target.value))}
                         />
                     </div>
                 </div>
 
-                <div className="chart-section">
+                <div className={styles['summary-stats']}>
+                    <div className={styles.stat}>
+                        <label>Final Net Worth:</label>
+                        <span>{formatCurrency(yearlyData[yearlyData.length - 1]?.netWorth || 0)}</span>
+                    </div>
+                    <div className={styles.stat}>
+                        <label>Total Investment Returns:</label>
+                        <span>{formatCurrency(yearlyData[yearlyData.length - 1]?.cumulativeReturns || 0)}</span>
+                    </div>
+                    <div className={styles.stat}>
+                        <label>Total Contributions:</label>
+                        <span>{formatCurrency(yearlyData[yearlyData.length - 1]?.cumulativeSavings || 0)}</span>
+                    </div>
+                </div>
+
+                <div className={styles['chart-container']} style={{ height: '400px', marginBottom: '2rem' }}>
                     <FinancialChart
-                        title="Wealth Growth Projection"
+                        title="Net Worth Growth Over Time"
                         labels={chartData.labels}
                         datasets={chartData.datasets}
-                        yAxisLabel="Net Worth (₹)"
+                        yAxisLabel="Amount (₹)"
                         xAxisLabel="Age"
+                        useLogScale={true}
                     />
                 </div>
 
-                <div className="chart-section">
+                <div className={styles['chart-container']} style={{ height: '400px' }}>
                     <FinancialChart
                         title="Returns Breakdown"
                         labels={returnsBreakdownData.labels}
                         datasets={returnsBreakdownData.datasets}
                         yAxisLabel="Amount (₹)"
                         xAxisLabel="Age"
+                        useLogScale={true}
                     />
-                </div>
-
-                <div className="rates-summary">
-                    <div className="rate-item">
-                        <span className="rate-label">Years to Retirement:</span>
-                        <span className="rate-value">{retirementAge - currentAge}</span>
-                    </div>
-                    <div className="rate-item">
-                        <span className="rate-label">Final Net Worth:</span>
-                        <span className="rate-value highlight">
-                            {formatCurrency(yearlyData[yearlyData.length - 1]?.netWorth || 0)}
-                        </span>
-                    </div>
-                    <div className="rate-item">
-                        <span className="rate-label">Total Investment Returns:</span>
-                        <span className="rate-value">
-                            {formatCurrency(yearlyData[yearlyData.length - 1]?.cumulativeReturns || 0)}
-                        </span>
-                    </div>
-                    <div className="rate-item">
-                        <span className="rate-label">Total Contributions:</span>
-                        <span className="rate-value">
-                            {formatCurrency(yearlyData[yearlyData.length - 1]?.cumulativeSavings || 0)}
-                        </span>
-                    </div>
                 </div>
             </div>
         </div>
