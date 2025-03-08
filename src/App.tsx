@@ -3,22 +3,25 @@ import './App.css';
 import PowerOfSavings from './components/PowerOfSavings';
 import PowerOfRateOfReturn from './components/PowerOfRateOfReturn';
 import RuleOf72 from './components/RuleOf72';
+import FourPercentRule from './components/FourPercentRule';
 
-type VisualizationType = 'powerOfSavings' | 'powerOfReturn' | 'ruleOf72';
+type VisualizationType = 'ruleOf72' | 'powerOfReturn' | 'fourPercentRule' | 'powerOfSavings';
 
 const App: React.FC = () => {
-    const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('powerOfSavings');
+    const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('ruleOf72');
 
     const renderVisualization = () => {
         switch (selectedVisualization) {
-            case 'powerOfSavings':
-                return <PowerOfSavings />;
-            case 'powerOfReturn':
-                return <PowerOfRateOfReturn />;
             case 'ruleOf72':
                 return <RuleOf72 />;
-            default:
+            case 'powerOfReturn':
+                return <PowerOfRateOfReturn />;
+            case 'fourPercentRule':
+                return <FourPercentRule />;
+            case 'powerOfSavings':
                 return <PowerOfSavings />;
+            default:
+                return <RuleOf72 />;
         }
     };
 
@@ -35,10 +38,12 @@ const App: React.FC = () => {
                         value={selectedVisualization}
                         onChange={(e) => setSelectedVisualization(e.target.value as VisualizationType)}
                         className="visualization-dropdown"
+                        aria-label="Select visualization type"
                     >
-                        <option value="powerOfSavings">Power of Savings</option>
-                        <option value="powerOfReturn">Power of Rate of Return</option>
                         <option value="ruleOf72">Rule of 72</option>
+                        <option value="powerOfReturn">Power of Rate of Return</option>
+                        <option value="fourPercentRule">4% Rule</option>
+                        <option value="powerOfSavings">Power of Savings</option>
                     </select>
                 </div>
 

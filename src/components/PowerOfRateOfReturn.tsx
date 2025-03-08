@@ -186,8 +186,8 @@ export const PowerOfRateOfReturn: React.FC = () => {
                 <div className="input-group">
                     <label htmlFor="currentAge">
                         Current Age
-                        <span className="input-value" aria-label={`Current value: ${currentAge} years`}>
-                            {currentAge} years
+                        <span className="input-value" aria-label={`Current value: ${currentAge} yrs`}>
+                            {currentAge} yrs
                         </span>
                     </label>
                     <input
@@ -210,15 +210,15 @@ export const PowerOfRateOfReturn: React.FC = () => {
                 <div className="input-group">
                     <label htmlFor="targetAge">
                         Target Age
-                        <span className="input-value" aria-label={`Current value: ${targetAge} years`}>
-                            {targetAge} years
+                        <span className="input-value" aria-label={`Current value: ${targetAge} yrs`}>
+                            {targetAge} yrs
                         </span>
                     </label>
                     <input
                         type="range"
                         id="targetAge"
                         min={currentAge + 1}
-                        max="90"
+                        max="100"
                         value={targetAge}
                         onChange={(e) => setTargetAge(parseInt(e.target.value))}
                         aria-label="Select target age"
@@ -227,7 +227,7 @@ export const PowerOfRateOfReturn: React.FC = () => {
 
                 <div className="input-group">
                     <label htmlFor="returnRate">
-                        Annual Return Rate
+                        Annual Return Rate (%)
                         <span className="input-value" aria-label={`Current value: ${returnRate}%`}>
                             {returnRate}%
                         </span>
@@ -237,9 +237,11 @@ export const PowerOfRateOfReturn: React.FC = () => {
                         id="returnRate"
                         min="1"
                         max="30"
+                        step="0.5"
                         value={returnRate}
-                        onChange={(e) => setReturnRate(parseInt(e.target.value))}
-                        aria-label="Select annual return rate"
+                        onChange={(e) => setReturnRate(parseFloat(e.target.value))}
+                        className="slider-input"
+                        aria-label="Select annual return rate percentage"
                     />
                 </div>
             </div>
@@ -265,8 +267,8 @@ export const PowerOfRateOfReturn: React.FC = () => {
                 </div>
                 <div className="result-card">
                     <h3>Time Period</h3>
-                    <div className="result-value" aria-label={`Time period: ${timePeriod} years`}>
-                        {timePeriod} years
+                    <div className="result-value" aria-label={`Time period: ${timePeriod} yrs`}>
+                        {timePeriod} yrs
                     </div>
                 </div>
             </div>
