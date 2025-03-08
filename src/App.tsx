@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
 import './App.css';
-import PowerOfSavings from './components/PowerOfSavings';
-import PowerOfRateOfReturn from './components/PowerOfRateOfReturn';
 import RuleOf72 from './components/RuleOf72';
+import PowerOfRateOfReturn from './components/PowerOfRateOfReturn';
 import FourPercentRule from './components/FourPercentRule';
+import PowerOfSavings from './components/PowerOfSavings';
 
-type VisualizationType = 'ruleOf72' | 'powerOfReturn' | 'fourPercentRule' | 'powerOfSavings';
+type VisualizationType = 'rule-of-72' | 'power-of-rate-of-return' | '4-percent-rule' | 'power-of-savings';
 
 const App: React.FC = () => {
-    const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('ruleOf72');
+    const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('rule-of-72');
 
     const renderVisualization = () => {
         switch (selectedVisualization) {
-            case 'ruleOf72':
+            case 'rule-of-72':
                 return <RuleOf72 />;
-            case 'powerOfReturn':
+            case 'power-of-rate-of-return':
                 return <PowerOfRateOfReturn />;
-            case 'fourPercentRule':
+            case '4-percent-rule':
                 return <FourPercentRule />;
-            case 'powerOfSavings':
+            case 'power-of-savings':
                 return <PowerOfSavings />;
             default:
                 return <RuleOf72 />;
@@ -26,31 +26,36 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="App">
-            <header className="App-header">
-                <h1>Financial Planning Visualizer</h1>
-                <p>Explore different financial concepts through interactive visualizations</p>
+        <div className="app-container">
+            <header className="app-header">
+                <h1 className="app-title">Financial Planning Visualizer</h1>
+                <p className="app-description">
+                    Explore powerful financial concepts through interactive visualizations. 
+                    Understand compound interest, savings strategies, and retirement planning 
+                    to make informed financial decisions.
+                </p>
             </header>
 
-            <main className="App-main">
-                <div className="visualization-selector">
-                    <select 
-                        value={selectedVisualization}
-                        onChange={(e) => setSelectedVisualization(e.target.value as VisualizationType)}
-                        className="visualization-dropdown"
-                        aria-label="Select visualization type"
-                    >
-                        <option value="ruleOf72">Rule of 72</option>
-                        <option value="powerOfReturn">Power of Rate of Return</option>
-                        <option value="fourPercentRule">4% Rule</option>
-                        <option value="powerOfSavings">Power of Savings</option>
-                    </select>
-                </div>
+            <div className="visualization-selector">
+                <select
+                    className="visualization-select"
+                    value={selectedVisualization}
+                    onChange={(e) => setSelectedVisualization(e.target.value as VisualizationType)}
+                    aria-label="Select visualization"
+                >
+                    <option value="rule-of-72">Rule of 72</option>
+                    <option value="power-of-rate-of-return">Power of Rate of Return</option>
+                    <option value="4-percent-rule">4% Rule</option>
+                    <option value="power-of-savings">Power of Savings</option>
+                </select>
+                <span className="select-arrow" aria-hidden="true">▼</span>
+            </div>
 
+            <main>
                 {renderVisualization()}
             </main>
 
-            <footer className="App-footer">
+            <footer className="app-footer">
                 <p>Built with React and Chart.js</p>
             </footer>
         </div>
