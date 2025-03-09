@@ -4,8 +4,9 @@ import RuleOf72 from './components/RuleOf72';
 import PowerOfRateOfReturn from './components/PowerOfRateOfReturn';
 import FourPercentRule from './components/FourPercentRule';
 import PowerOfSavings from './components/PowerOfSavings';
+import TPERVisualizer from './components/TPER/TPERVisualizer';
 
-type VisualizationType = 'rule-of-72' | 'power-of-rate-of-return' | '4-percent-rule' | 'power-of-savings';
+type VisualizationType = 'rule-of-72' | 'power-of-rate-of-return' | '4-percent-rule' | 'power-of-savings' | 'tper';
 
 const App: React.FC = () => {
     const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('rule-of-72');
@@ -20,6 +21,8 @@ const App: React.FC = () => {
                 return <FourPercentRule />;
             case 'power-of-savings':
                 return <PowerOfSavings />;
+            case 'tper':
+                return <TPERVisualizer />;
             default:
                 return <RuleOf72 />;
         }
@@ -32,7 +35,7 @@ const App: React.FC = () => {
                 <p className="app-description">
                     Explore powerful financial concepts through interactive visualizations. 
                     Understand compound interest, savings strategies, and retirement planning 
-                    to make informed financial decisions.
+                    to make informed financial decisions for the Indian market context.
                 </p>
             </header>
 
@@ -47,6 +50,7 @@ const App: React.FC = () => {
                     <option value="power-of-rate-of-return">Power of Rate of Return</option>
                     <option value="4-percent-rule">4% Rule</option>
                     <option value="power-of-savings">Power of Savings</option>
+                    <option value="tper">TPER Framework</option>
                 </select>
                 <span className="select-arrow" aria-hidden="true">▼</span>
             </div>
@@ -56,7 +60,7 @@ const App: React.FC = () => {
             </main>
 
             <footer className="app-footer">
-                <p>Built with React and Chart.js</p>
+                <p>Built with React and Chart.js • Optimized for Indian Financial Context</p>
             </footer>
         </div>
     );
