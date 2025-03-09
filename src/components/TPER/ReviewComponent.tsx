@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -8,9 +8,11 @@ import {
     LineElement,
     Title,
     Tooltip,
-    Legend
+    Legend,
+    ChartData,
+    ChartOptions
 } from 'chart.js';
-import { AssetAllocationPlan } from './PlanComponent';
+import { AssetAllocation } from './PlanComponent';
 import styles from './TPER.module.css';
 
 ChartJS.register(
@@ -24,230 +26,357 @@ ChartJS.register(
 );
 
 interface ReviewComponentProps {
-    targetCorpus: number;
-    plan: AssetAllocationPlan;
+    plan: {
+        targetCorpus: number;
+        monthlySavings: number;
+        timeHorizon: number;
+        allocation: {
+            lowRisk: number;
+            moderateRisk: number;
+            highRisk: number;
+        };
+        savingsGrowthRate: number;
+    };
     currentAssets: {
         fixedDeposits: number;
         bonds: number;
-        hybridFunds: number;
-        stocks: number;
         mutualFunds: number;
+        stocks: number;
+        gold: number;
+        reits: number;
+        currentNetWorth: number;
     };
 }
 
-const formatIndianCurrency = (amount: number): string => {
-    const crore = Math.floor(amount / 10000000);
-    const lakh = Math.floor((amount % 10000000) / 100000);
-    if (crore > 0) {
-        return `₹${crore} crore ${lakh > 0 ? `${lakh} lakh` : ''}`;
-    }
-    return `₹${lakh} lakh`;
-};
-
 export const ReviewComponent: React.FC<ReviewComponentProps> = ({
-    targetCorpus,
     plan,
     currentAssets
 }) => {
+    const [historicalData, setHistoricalData] = useState<{
+        date: Date;
+        value: number;
+    }[]>([]);
+
+    const formatIndianCurrency = (amount: number): string => {
+        const crore = Math.floor(amount / 10000000);
+        const lakh = Math.floor((amount % 10000000) / 100000);
+        const croreStr = crore > 0 ? `${crore.toString()} crore` : '';
+        const lakhStr = lakh > 0 ? `${lakh.toString()} lakh` : '';
+        
+        if (crore > 0) {
+            return `₹${croreStr}${lakh > 0 ? ` ${lakhStr}` : ''}`;
+        }
+        return `₹${lakhStr || '0'}`;
+    };
+
+    useEffect(() => {
+        // Generate historical data starting from current net worth
+        const generateHistoricalData = () => {
+            const data = [];
+            let currentValue = currentAssets.currentNetWorth;
+            const monthlyReturn = plan.savingsGrowthRate / 12 / 100;
+            const monthlySavings = plan.monthlySavings;
+
+            for (let i = 11; i >= 0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                data.push({
+                    date,
+                    value: currentValue
+                });
+                // Project forward considering both returns and monthly savings
+                currentValue = (currentValue * (1 + monthlyReturn)) + monthlySavings;
+            }
+            return data;
+        };
+
+        setHistoricalData(generateHistoricalData());
+    }, [plan, currentAssets]);
+
     const getTotalAssets = (): number => {
-        return Object.values(currentAssets).reduce((sum, value) => sum + value, 0);
+        // Include all investments plus current net worth
+        const { currentNetWorth, ...investments } = currentAssets;
+        const totalInvestments = Object.values(investments).reduce((sum, value) => sum + value, 0);
+        return totalInvestments + currentNetWorth;
     };
 
     const getCurrentAllocation = () => {
-        const total = getTotalAssets();
+        const { currentNetWorth, ...investments } = currentAssets;
+        const totalInvestments = Object.values(investments).reduce((sum, value) => sum + value, 0);
+        if (totalInvestments === 0) return { lowRisk: "0", moderateRisk: "0", highRisk: "0" };
+
         return {
-            lowRisk: ((currentAssets.fixedDeposits + currentAssets.bonds) / total * 100).toFixed(1),
-            moderateRisk: (currentAssets.hybridFunds / total * 100).toFixed(1),
-            highRisk: ((currentAssets.stocks + currentAssets.mutualFunds) / total * 100).toFixed(1)
+            lowRisk: ((currentAssets.fixedDeposits + currentAssets.bonds) / totalInvestments * 100).toFixed(1),
+            moderateRisk: ((currentAssets.mutualFunds + currentAssets.gold) / totalInvestments * 100).toFixed(1),
+            highRisk: ((currentAssets.stocks + currentAssets.reits) / totalInvestments * 100).toFixed(1)
         };
     };
 
-    const expectedReturns = {
-        lowRisk: 6, // FD, Bonds (~6%)
-        moderateRisk: 10, // Hybrid Funds (~10%)
-        highRisk: 12 // Equity (~12%)
-    };
-
-    const calculateWeightedReturn = (): number => {
-        const allocation = getCurrentAllocation();
-        return (
-            (parseFloat(allocation.lowRisk) * expectedReturns.lowRisk +
-            parseFloat(allocation.moderateRisk) * expectedReturns.moderateRisk +
-            parseFloat(allocation.highRisk) * expectedReturns.highRisk) / 100
-        );
-    };
-
-    // Project portfolio growth for next 10 years
-    const projectGrowth = () => {
-        const monthlyRate = calculateWeightedReturn() / 1200; // Convert annual % to monthly decimal
-        const monthlySavings = plan.monthlySavings;
-        const savingsGrowthRate = plan.savingsGrowthRate / 1200; // Monthly growth rate
-        
-        let currentSavings = monthlySavings;
-        let total = getTotalAssets();
-        const projections = [total];
-        
-        for (let month = 1; month <= 120; month++) { // 10 years
-            total = total * (1 + monthlyRate) + currentSavings;
-            currentSavings *= (1 + savingsGrowthRate);
-            if (month % 12 === 0) {
-                projections.push(total);
-            }
-        }
-        
-        return projections;
-    };
-
-    const getProgressStatus = (): { status: string; color: string } => {
+    const analyzePlanExecution = () => {
         const total = getTotalAssets();
-        const progressPercentage = (total / targetCorpus) * 100;
+        const monthsSinceStart = historicalData.length;
         
-        if (progressPercentage >= 90) {
-            return { status: 'Excellent', color: '#34d399' };
-        } else if (progressPercentage >= 75) {
-            return { status: 'Good', color: '#60a5fa' };
-        } else if (progressPercentage >= 50) {
-            return { status: 'Fair', color: '#fbbf24' };
+        // Calculate expected growth based on current net worth and monthly savings
+        const expectedSavings = (plan.monthlySavings * monthsSinceStart) + currentAssets.currentNetWorth;
+        const expectedGrowth = expectedSavings * (1 + (plan.savingsGrowthRate / 12 / 100) * monthsSinceStart);
+        
+        // Compare actual vs expected
+        const executionRatio = total / expectedGrowth;
+        
+        return {
+            actual: total,
+            expected: expectedGrowth,
+            ratio: executionRatio,
+            monthlySavingsStatus: total >= expectedSavings ? 'ahead' : 'behind',
+            savingsShortfall: Math.max(0, expectedSavings - total)
+        };
+    };
+
+    const getProgressStatus = () => {
+        const total = getTotalAssets();
+        const progressPercentage = (total / plan.targetCorpus) * 100;
+        const execution = analyzePlanExecution();
+        
+        if (execution.ratio >= 1.1) {
+            return {
+                status: 'Excellent',
+                message: `Congratulations! At ₹${formatIndianCurrency(total)}, you are ahead of your investment plan. Your disciplined approach is paying off.`,
+                color: '#10b981'
+            };
+        } else if (execution.ratio >= 0.95) {
+            return {
+                status: 'On Track',
+                message: `You are staying the course with your investment plan. Current net worth: ₹${formatIndianCurrency(total)}`,
+                color: '#3b82f6'
+            };
+        } else if (execution.ratio >= 0.8) {
+            return {
+                status: 'Slightly Behind',
+                message: `At ₹${formatIndianCurrency(total)}, you are slightly behind your plan. Consider increasing your monthly investment by ₹${Math.ceil(execution.savingsShortfall / 6000) * 1000} to catch up.`,
+                color: '#f59e0b'
+            };
         } else {
-            return { status: 'Needs Attention', color: '#fb7185' };
+            return {
+                status: 'Needs Attention',
+                message: `Current net worth of ₹${formatIndianCurrency(total)} is significantly behind the plan. To catch up:\n1. Increase monthly savings by ₹${Math.ceil(execution.savingsShortfall / 6000) * 1000}\n2. Review your asset allocation\n3. Consider additional income sources`,
+                color: '#ef4444'
+            };
         }
     };
 
-    const getRecommendations = (): string[] => {
-        const recommendations: string[] = [];
-        const total = getTotalAssets();
-        const progressPercentage = (total / targetCorpus) * 100;
-        const currentAllocation = getCurrentAllocation();
-        
-        if (progressPercentage < 50) {
-            recommendations.push('Consider increasing your monthly savings to accelerate wealth creation.');
+    const getAllocationDeviation = () => {
+        const current = getCurrentAllocation();
+        return {
+            lowRisk: (parseFloat(current.lowRisk) - plan.allocation.lowRisk).toFixed(1),
+            moderateRisk: (parseFloat(current.moderateRisk) - plan.allocation.moderateRisk).toFixed(1),
+            highRisk: (parseFloat(current.highRisk) - plan.allocation.highRisk).toFixed(1)
+        };
+    };
+
+    const getRecommendations = () => {
+        const recommendations = [];
+        const deviation = getAllocationDeviation();
+        const execution = analyzePlanExecution();
+
+        // Check monthly savings adherence
+        if (execution.ratio < 0.95) {
+            recommendations.push({
+                type: 'Monthly Savings',
+                message: `You need to increase your monthly investment by ₹${Math.ceil(execution.savingsShortfall / 6000) * 1000} to stay on track`,
+                priority: 'High'
+            });
         }
-        
-        if (Math.abs(parseFloat(currentAllocation.lowRisk) - plan.lowRisk) > 5) {
-            recommendations.push('Your low-risk allocation needs rebalancing to match your target allocation.');
+
+        // Check asset allocation
+        if (Math.abs(parseFloat(deviation.lowRisk)) > 5) {
+            const action = parseFloat(deviation.lowRisk) > 0 ? 'Decrease' : 'Increase';
+            recommendations.push({
+                type: 'Low Risk Assets',
+                message: `${action} FDs and bonds by ₹${formatIndianCurrency(Math.abs(parseFloat(deviation.lowRisk)) * getTotalAssets() / 100)}`,
+                priority: 'Medium'
+            });
         }
-        
-        if (Math.abs(parseFloat(currentAllocation.highRisk) - plan.highRisk) > 5) {
-            recommendations.push('Your high-risk allocation needs rebalancing to match your target allocation.');
+
+        if (Math.abs(parseFloat(deviation.moderateRisk)) > 5) {
+            const action = parseFloat(deviation.moderateRisk) > 0 ? 'Decrease' : 'Increase';
+            recommendations.push({
+                type: 'Moderate Risk Assets',
+                message: `${action} mutual funds and gold by ₹${formatIndianCurrency(Math.abs(parseFloat(deviation.moderateRisk)) * getTotalAssets() / 100)}`,
+                priority: 'Medium'
+            });
         }
-        
-        if (plan.savingsGrowthRate < 10) {
-            recommendations.push('Consider planning for higher savings growth to keep up with inflation.');
+
+        if (Math.abs(parseFloat(deviation.highRisk)) > 5) {
+            const action = parseFloat(deviation.highRisk) > 0 ? 'Decrease' : 'Increase';
+            recommendations.push({
+                type: 'High Risk Assets',
+                message: `${action} stocks and REITs by ₹${formatIndianCurrency(Math.abs(parseFloat(deviation.highRisk)) * getTotalAssets() / 100)}`,
+                priority: 'Medium'
+            });
         }
-        
+
         return recommendations;
     };
 
-    const projectedData = projectGrowth();
+    const totalAssets = getTotalAssets();
+    const currentAllocation = getCurrentAllocation();
     const progressStatus = getProgressStatus();
     const recommendations = getRecommendations();
+    const execution = analyzePlanExecution();
 
     const chartData = {
-        labels: Array.from({ length: 11 }, (_, i) => `Year ${i}`),
+        labels: historicalData.map(d => d.date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })),
         datasets: [
             {
-                label: 'Projected Portfolio Value',
-                data: projectedData,
-                borderColor: 'rgb(79, 70, 229)',
-                backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                tension: 0.1
+                label: 'Actual Portfolio Value',
+                data: historicalData.map(d => d.value),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4
             },
             {
-                label: 'Target Corpus',
-                data: Array(11).fill(targetCorpus),
-                borderColor: 'rgba(99, 102, 241, 0.4)',
+                label: 'Expected Portfolio Value',
+                data: historicalData.map((_, index) => {
+                    const months = index + 1;
+                    return currentAssets.currentNetWorth + 
+                           (plan.monthlySavings * months * (1 + (plan.savingsGrowthRate / 12 / 100) * months));
+                }),
+                borderColor: '#9ca3af',
                 borderDash: [5, 5],
-                tension: 0
+                fill: false,
+                tension: 0.4
             }
         ]
     };
 
+    const chartOptions: ChartOptions<'line'> = {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: '12-Month Portfolio Performance',
+                font: {
+                    size: 16,
+                    weight: 'bold' as const
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: (context) => `Value: ${formatIndianCurrency(context.raw as number)}`
+                }
+            }
+        },
+        scales: {
+            y: {
+                type: 'linear' as const,
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Portfolio Value (₹)'
+                },
+                ticks: {
+                    callback: function(value) {
+                        return formatIndianCurrency(value as number);
+                    }
+                }
+            }
+        }
+    };
+
     return (
         <div className={styles['review-component']}>
-            <h2>Financial Progress Review</h2>
+            <h2>Review Your Progress</h2>
 
-            <div className={styles['progress-summary']}>
-                <div className={styles['progress-header']}>
-                    <h3>Current Progress</h3>
-                    <span 
-                        className={styles['progress-status']}
-                        style={{ color: progressStatus.color }}
-                    >
-                        {progressStatus.status}
-                    </span>
-                </div>
-
-                <div className={styles['summary-stats']}>
-                    <div className={styles['stat-item']}>
-                        <span>Current Portfolio:</span>
-                        <strong>{formatIndianCurrency(getTotalAssets())}</strong>
-                    </div>
-                    <div className={styles['stat-item']}>
-                        <span>Target Corpus:</span>
-                        <strong>{formatIndianCurrency(targetCorpus)}</strong>
-                    </div>
-                    <div className={styles['stat-item']}>
-                        <span>Progress:</span>
-                        <strong>{((getTotalAssets() / targetCorpus) * 100).toFixed(1)}%</strong>
-                    </div>
-                    <div className={styles['stat-item']}>
-                        <span>Expected Return:</span>
-                        <strong>{calculateWeightedReturn().toFixed(1)}%</strong>
+            <div className={styles['progress-status']} style={{ borderColor: progressStatus.color }}>
+                <div className={styles['status-header']}>
+                    <h3>Progress Status: <span style={{ color: progressStatus.color }}>{progressStatus.status}</span></h3>
+                    <div className={styles['progress-percentage']}>
+                        {((totalAssets / plan.targetCorpus) * 100).toFixed(1)}%
                     </div>
                 </div>
+                <p>{progressStatus.message}</p>
             </div>
 
-            <div className={styles['chart-container']}>
-                <Line 
-                    data={chartData}
-                    options={{
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: '10-Year Portfolio Projection',
-                                color: '#1e293b',
-                                font: {
-                                    size: 16,
-                                    weight: 'bold'
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => {
-                                        const value = context.raw as number;
-                                        return `${context.dataset.label}: ${formatIndianCurrency(value)}`;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: 'Portfolio Value (₹)',
-                                    color: '#64748b'
-                                },
-                                ticks: {
-                                    callback: (value) => formatIndianCurrency(value as number)
-                                }
-                            }
-                        }
-                    }}
-                />
-            </div>
+            <div className={styles['review-grid']}>
+                <div className={styles['chart-container']}>
+                    <Line data={chartData} options={chartOptions} />
+                </div>
 
-            <div className={styles['recommendations']}>
-                <h3>Recommendations</h3>
-                <div className={styles['recommendation-list']}>
-                    {recommendations.map((recommendation, index) => (
-                        <div key={index} className={styles['recommendation-item']}>
-                            <span className={styles['recommendation-icon']}>•</span>
-                            <p>{recommendation}</p>
+                <div className={styles['summary-container']}>
+                    <div className={styles['summary-section']}>
+                        <h3>Portfolio Summary</h3>
+                        <div className={styles['summary-stats']}>
+                            <div className={styles['stat-item']}>
+                                <span>Current Value</span>
+                                <strong>{formatIndianCurrency(totalAssets)}</strong>
+                            </div>
+                            <div className={styles['stat-item']}>
+                                <span>Target Corpus</span>
+                                <strong>{formatIndianCurrency(plan.targetCorpus)}</strong>
+                            </div>
+                            <div className={styles['stat-item']}>
+                                <span>Monthly Investment</span>
+                                <strong>{formatIndianCurrency(plan.monthlySavings)}</strong>
+                            </div>
                         </div>
-                    ))}
+                    </div>
+
+                    <div className={styles['allocation-section']}>
+                        <h3>Current Allocation</h3>
+                        <div className={styles['allocation-stats']}>
+                            <div className={styles['allocation-item']}>
+                                <span>Low Risk</span>
+                                <div className={styles['allocation-bar']}>
+                                    <div 
+                                        className={styles['allocation-fill']}
+                                        style={{ width: `${String(currentAllocation.lowRisk)}%`, backgroundColor: '#60a5fa' }}
+                                    />
+                                </div>
+                                <strong>{currentAllocation.lowRisk}%</strong>
+                            </div>
+                            <div className={styles['allocation-item']}>
+                                <span>Moderate Risk</span>
+                                <div className={styles['allocation-bar']}>
+                                    <div 
+                                        className={styles['allocation-fill']}
+                                        style={{ width: `${String(currentAllocation.moderateRisk)}%`, backgroundColor: '#fbbf24' }}
+                                    />
+                                </div>
+                                <strong>{currentAllocation.moderateRisk}%</strong>
+                            </div>
+                            <div className={styles['allocation-item']}>
+                                <span>High Risk</span>
+                                <div className={styles['allocation-bar']}>
+                                    <div 
+                                        className={styles['allocation-fill']}
+                                        style={{ width: `${String(currentAllocation.highRisk)}%`, backgroundColor: '#f43f5e' }}
+                                    />
+                                </div>
+                                <strong>{currentAllocation.highRisk}%</strong>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {recommendations.length > 0 && (
+                <div className={styles['recommendations']}>
+                    <h3>Recommendations</h3>
+                    <div className={styles['recommendations-list']}>
+                        {recommendations.map((rec, index) => (
+                            <div 
+                                key={index} 
+                                className={`${styles['recommendation-item']} ${styles[`priority-${rec.priority.toLowerCase()}`]}`}
+                            >
+                                <div className={styles['recommendation-type']}>{rec.type}</div>
+                                <div className={styles['recommendation-message']}>{rec.message}</div>
+                                <div className={styles['recommendation-priority']}>{rec.priority}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

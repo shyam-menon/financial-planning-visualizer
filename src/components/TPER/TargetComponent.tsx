@@ -1,194 +1,247 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
 import styles from './TPER.module.css';
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
-);
-
-const formatIndianCurrency = (amount: number): string => {
-    const crore = Math.floor(amount / 10000000);
-    const lakh = Math.floor((amount % 10000000) / 100000);
-    if (crore > 0) {
-        return `₹${crore} crore ${lakh > 0 ? `${lakh} lakh` : ''}`;
-    }
-    return `₹${lakh} lakh`;
-};
-
 interface TargetComponentProps {
-    onTargetSet: (target: number) => void;
+    onTargetCalculated: (target: number, currentAge: number, retirementAge: number) => void;
 }
 
-export const TargetComponent: React.FC<TargetComponentProps> = ({ onTargetSet }) => {
-    const [monthlyExpenses, setMonthlyExpenses] = useState<number>(40000); // Default ₹40,000
-    const [multiplier, setMultiplier] = useState<number>(500); // Conservative estimate
-    const [detailedMode, setDetailedMode] = useState<boolean>(false);
-    const [inflation, setInflation] = useState<number>(6); // Default 6% based on Indian inflation
-    const [yearsToRetirement, setYearsToRetirement] = useState<number>(30);
+interface CorpusOption {
+    name: string;
+    multiplier: number;
+    description: string;
+}
 
-    const calculateSimpleTarget = (): number => {
-        return monthlyExpenses * multiplier;
+export const TargetComponent: React.FC<TargetComponentProps> = ({ onTargetCalculated }) => {
+    const [monthlyExpenses, setMonthlyExpenses] = useState<number>(100000); // ₹1,00,000 default
+    const [currentAge, setCurrentAge] = useState<number>(36);
+    const [retirementAge, setRetirementAge] = useState<number>(60);
+    const [inflationRate, setInflationRate] = useState<number>(6); // 6% default for India
+    const [lifeExpectancy, setLifeExpectancy] = useState<number>(85); // Default life expectancy
+    const [selectedMultiplier, setSelectedMultiplier] = useState<number>(400); // Default to Safe option
+    const [targetCorpus, setTargetCorpus] = useState<number>(0);
+
+    const corpusOptions: CorpusOption[] = [
+        {
+            name: "Minimum",
+            multiplier: 300,
+            description: "Basic retirement with essential expenses covered"
+        },
+        {
+            name: "Safe",
+            multiplier: 400,
+            description: "Comfortable retirement with moderate lifestyle"
+        },
+        {
+            name: "Comfortable",
+            multiplier: 600,
+            description: "Luxurious retirement with extra discretionary spending"
+        }
+    ];
+
+    const calculateTarget = (): number => {
+        const yearsToRetirement = retirementAge - currentAge;
+        
+        // Calculate monthly expenses at retirement (adjusted for inflation)
+        const inflatedExpenses = monthlyExpenses * Math.pow(1 + inflationRate/100, yearsToRetirement);
+        
+        // Calculate corpus using selected multiplier
+        return inflatedExpenses * selectedMultiplier;
     };
 
-    const calculateDetailedTarget = (): number => {
-        const monthlyInflationRate = inflation / 1200; // Convert annual % to monthly decimal
-        const futureMonthlyExpenses = monthlyExpenses * 
-            Math.pow(1 + monthlyInflationRate, yearsToRetirement * 12);
-        return futureMonthlyExpenses * multiplier;
+    const generateProjectionData = () => {
+        const yearsToRetirement = retirementAge - currentAge;
+        const data = [];
+        const labels = [];
+        
+        for (let year = 0; year <= yearsToRetirement; year++) {
+            const age = currentAge + year;
+            const remainingYearsToRetirement = retirementAge - age;
+            
+            // Calculate expenses at retirement for this starting age
+            const inflatedExpenses = monthlyExpenses * Math.pow(1 + inflationRate/100, remainingYearsToRetirement);
+            
+            // Calculate required corpus using selected multiplier
+            const requiredCorpus = inflatedExpenses * selectedMultiplier;
+            
+            data.push(Math.max(0, requiredCorpus));
+            labels.push(`Age ${age}`);
+        }
+
+        return { data, labels };
     };
 
-    const targetCorpus = detailedMode ? calculateDetailedTarget() : calculateSimpleTarget();
+    useEffect(() => {
+        const target = calculateTarget();
+        setTargetCorpus(target);
+        onTargetCalculated(target, currentAge, retirementAge);
+    }, [monthlyExpenses, currentAge, retirementAge, inflationRate, selectedMultiplier]);
 
+    const formatIndianCurrency = (amount: number): string => {
+        const crore = Math.floor(amount / 10000000);
+        const lakh = Math.floor((amount % 10000000) / 100000);
+        if (crore > 0) {
+            return `₹${crore} crore ${lakh > 0 ? `${lakh} lakh` : ''}`;
+        }
+        return `₹${lakh} lakh`;
+    };
+
+    const projectionData = generateProjectionData();
     const chartData = {
-        labels: Array.from({ length: 12 }, (_, i) => `Month ${i + 1}`),
-        datasets: [{
-            label: 'Monthly Expenses Growth',
-            data: Array.from({ length: 12 }, (_, i) => 
-                monthlyExpenses * Math.pow(1 + inflation/1200, i)),
-            borderColor: 'rgb(79, 70, 229)',
-            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-            tension: 0.1
-        }]
+        labels: projectionData.labels,
+        datasets: [
+            {
+                label: 'Required Corpus',
+                data: projectionData.data,
+                borderColor: 'rgb(79, 70, 229)',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.1
+            }
+        ]
     };
 
     return (
         <div className={styles['target-component']}>
-            <h2>Set Your Financial Target</h2>
+            <h2>Set Your Retirement Target</h2>
             
             <div className={styles['input-group']}>
-                <label>
-                    Monthly Expenses (₹):
-                    <div className={styles['input-wrapper']}>
-                        <input
-                            type="number"
-                            value={monthlyExpenses}
-                            onChange={(e) => setMonthlyExpenses(Number(e.target.value))}
-                            step={100000} // Step size of 1 lakh as per Indian context
-                            min={0}
-                            aria-label="Monthly expenses in rupees"
-                        />
-                        <span className={styles['input-icon']}>₹</span>
+                <div className={styles['input-field']}>
+                    <label htmlFor="currentAge">Current Age</label>
+                    <input
+                        type="number"
+                        id="currentAge"
+                        value={currentAge}
+                        onChange={(e) => setCurrentAge(Number(e.target.value))}
+                        min="18"
+                        max="70"
+                        step="1"
+                    />
+                </div>
+
+                <div className={styles['input-field']}>
+                    <label htmlFor="retirementAge">Retirement Age</label>
+                    <input
+                        type="number"
+                        id="retirementAge"
+                        value={retirementAge}
+                        onChange={(e) => setRetirementAge(Number(e.target.value))}
+                        min={currentAge + 1}
+                        max="75"
+                        step="1"
+                    />
+                </div>
+
+                <div className={styles['input-field']}>
+                    <label htmlFor="monthlyExpenses">Monthly Expenses (₹)</label>
+                    <input
+                        type="number"
+                        id="monthlyExpenses"
+                        value={monthlyExpenses}
+                        onChange={(e) => setMonthlyExpenses(Number(e.target.value))}
+                        min="10000"
+                        step="1000"
+                    />
+                </div>
+
+                <div className={styles['input-field']}>
+                    <label>Retirement Lifestyle</label>
+                    <div className={styles['radio-group']}>
+                        {corpusOptions.map(option => (
+                            <label key={option.name}>
+                                <input
+                                    type="radio"
+                                    value={option.multiplier}
+                                    checked={selectedMultiplier === option.multiplier}
+                                    onChange={(e) => setSelectedMultiplier(Number(e.target.value))}
+                                />
+                                {option.name}
+                                <span className={styles['option-description']}>
+                                    ({option.description})
+                                </span>
+                            </label>
+                        ))}
                     </div>
-                </label>
+                </div>
+
+                <div className={styles['input-field']}>
+                    <label htmlFor="inflationRate">Expected Inflation Rate (%)</label>
+                    <input
+                        type="number"
+                        id="inflationRate"
+                        value={inflationRate}
+                        onChange={(e) => setInflationRate(Number(e.target.value))}
+                        min="2"
+                        max="15"
+                        step="0.1"
+                    />
+                </div>
+
+                <div className={styles['input-field']}>
+                    <label htmlFor="lifeExpectancy">Life Expectancy (Years)</label>
+                    <input
+                        type="number"
+                        id="lifeExpectancy"
+                        value={lifeExpectancy}
+                        onChange={(e) => setLifeExpectancy(Number(e.target.value))}
+                        min={retirementAge + 1}
+                        max="100"
+                        step="1"
+                    />
+                </div>
             </div>
 
-            <div className={styles['input-group']}>
-                <label>
-                    Calculation Method:
-                    <select 
-                        value={detailedMode ? "detailed" : "simple"}
-                        onChange={(e) => setDetailedMode(e.target.value === "detailed")}
-                        aria-label="Select calculation method"
-                    >
-                        <option value="simple">Simple (Rule of Thumb)</option>
-                        <option value="detailed">Detailed (With Inflation)</option>
-                    </select>
-                </label>
+            <div className={styles['target-summary']}>
+                <h3>Target Corpus Required</h3>
+                <p className={styles['target-amount']}>{formatIndianCurrency(Math.max(0, targetCorpus))}</p>
+                <p className={styles['target-description']}>
+                    {`Based on ${selectedMultiplier}x of your monthly expenses at retirement, adjusted for ${inflationRate}% inflation over ${retirementAge - currentAge} years until retirement.`}
+                </p>
+                <p className={styles['calculation-details']}>
+                    <strong>How it's calculated:</strong><br/>
+                    1. Current monthly expenses: {formatIndianCurrency(monthlyExpenses)}<br/>
+                    2. Monthly expenses at retirement: {formatIndianCurrency(monthlyExpenses * Math.pow(1 + inflationRate/100, retirementAge - currentAge))}<br/>
+                    3. Required corpus = Monthly expenses at retirement × {selectedMultiplier}
+                </p>
             </div>
 
-            {detailedMode && (
-                <>
-                    <div className={styles['input-group']}>
-                        <label>
-                            Annual Inflation Rate (%):
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={inflation}
-                                    onChange={(e) => setInflation(Number(e.target.value))}
-                                    step={0.1} // As per Indian context preferences
-                                    min={0}
-                                    max={20}
-                                    aria-label="Annual inflation rate percentage"
-                                />
-                                <span className={styles['input-icon']}>%</span>
-                            </div>
-                        </label>
-                    </div>
-                    <div className={styles['input-group']}>
-                        <label>
-                            Years to Retirement:
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={yearsToRetirement}
-                                    onChange={(e) => setYearsToRetirement(Number(e.target.value))}
-                                    step={1} // As per Indian context preferences
-                                    min={1}
-                                    aria-label="Years until retirement"
-                                />
-                                <span className={styles['input-icon']}>yrs</span>
-                            </div>
-                        </label>
-                    </div>
-                    <div className={styles['chart-container']}>
-                        <Line data={chartData} options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                title: {
-                                    display: true,
-                                    text: 'Monthly Expenses Growth (1 Year Projection)',
-                                    color: '#1e293b',
-                                    font: {
-                                        size: 16,
-                                        weight: 'bold' // Fixed TypeScript error by using string literal
-                                    }
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: (context) => `₹${context.parsed.y.toLocaleString('en-IN')}`
-                                    }
+            <div className={styles['chart-container']}>
+                <Line 
+                    data={chartData}
+                    options={{
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Required Corpus Growth Over Time',
+                                color: '#1e293b',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
                                 }
                             },
-                            scales: {
-                                y: {
-                                    title: {
-                                        display: true,
-                                        text: 'Monthly Expenses (₹)',
-                                        color: '#64748b'
-                                    },
-                                    ticks: {
-                                        callback: (value) => `₹${value.toLocaleString('en-IN')}`
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const value = context.raw as number;
+                                        return `Required: ${formatIndianCurrency(value)}`;
                                     }
                                 }
                             }
-                        }} />
-                    </div>
-                </>
-            )}
-
-            <div className={styles.result}>
-                <h3>Target Corpus: {formatIndianCurrency(targetCorpus)}</h3>
-                <p className={styles['result-explanation']}>
-                    This target is calculated based on {detailedMode ? 
-                        `your monthly expenses of ₹${monthlyExpenses.toLocaleString('en-IN')}, adjusted for ${inflation}% annual inflation over ${yearsToRetirement} years` :
-                        `${multiplier}x your current monthly expenses of ₹${monthlyExpenses.toLocaleString('en-IN')}`
-                    }.
-                </p>
-                <button 
-                    className={styles['submit-button']}
-                    onClick={() => onTargetSet(targetCorpus)}
-                    aria-label="Set target corpus"
-                >
-                    Set This Target
-                </button>
+                        },
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Corpus Required (₹)',
+                                    color: '#64748b'
+                                },
+                                ticks: {
+                                    callback: (value) => formatIndianCurrency(value as number)
+                                }
+                            }
+                        }
+                    }}
+                />
             </div>
         </div>
     );

@@ -1,296 +1,472 @@
-import React, { useState } from 'react';
-import { Bar } from 'react-chartjs-2';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
-import { AssetAllocationPlan } from './PlanComponent';
+import React, { useState, useEffect } from 'react';
 import styles from './TPER.module.css';
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-);
-
 interface ExecuteComponentProps {
-    targetCorpus: number;
-    plan: AssetAllocationPlan;
-    onExecutionUpdate: (assets: CurrentAssets) => void;
+    plan: {
+        targetCorpus: number;
+        monthlySavings: number;
+        timeHorizon: number;
+        allocation: {
+            lowRisk: number;
+            moderateRisk: number;
+            highRisk: number;
+        };
+    };
+    onAssetsUpdated: (assets: Portfolio) => void;
 }
 
-interface CurrentAssets {
+interface Portfolio {
     fixedDeposits: number;
     bonds: number;
-    hybridFunds: number;
-    stocks: number;
     mutualFunds: number;
+    stocks: number;
+    gold: number;
+    reits: number;
+    currentNetWorth: number;
 }
 
-const formatIndianCurrency = (amount: number): string => {
-    const crore = Math.floor(amount / 10000000);
-    const lakh = Math.floor((amount % 10000000) / 100000);
-    if (crore > 0) {
-        return `₹${crore} crore ${lakh > 0 ? `${lakh} lakh` : ''}`;
-    }
-    return `₹${lakh} lakh`;
-};
-
-export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({
-    targetCorpus,
-    plan,
-    onExecutionUpdate
-}) => {
-    const [currentAssets, setCurrentAssets] = useState<CurrentAssets>({
-        fixedDeposits: 2500000, // ₹25 lakh
-        bonds: 1500000, // ₹15 lakh
-        hybridFunds: 3000000, // ₹30 lakh
-        stocks: 2000000, // ₹20 lakh
-        mutualFunds: 1000000 // ₹10 lakh
+export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAssetsUpdated }) => {
+    const [portfolio, setPortfolio] = useState<Portfolio>({
+        fixedDeposits: 0,
+        bonds: 0,
+        mutualFunds: 0,
+        stocks: 0,
+        gold: 0,
+        reits: 0,
+        currentNetWorth: 0
     });
 
-    const getTotalAssets = (): number => {
-        return Object.values(currentAssets).reduce((sum, value) => sum + value, 0);
+    const [executionStatus, setExecutionStatus] = useState({
+        isOnTrack: true,
+        message: '',
+        progress: 0
+    });
+
+    const formatIndianCurrency = (amount: number): string => {
+        if (amount >= 10000000) { // 1 crore
+            const crore = Math.floor(amount / 10000000);
+            const lakh = Math.floor((amount % 10000000) / 100000);
+            return `₹${crore} crore${lakh > 0 ? ` ${lakh} lakh` : ''}`;
+        } else if (amount >= 100000) { // 1 lakh
+            const lakh = Math.floor(amount / 100000);
+            const remainder = amount % 100000;
+            return `₹${lakh} lakh${remainder > 0 ? ` ${remainder}` : ''}`;
+        }
+        return `₹${amount}`;
     };
 
-    const getCurrentAllocation = () => {
-        const total = getTotalAssets();
+    // Calculate suggested portfolio based on current net worth and 6 months of execution
+    const calculateSuggestedPortfolio = () => {
+        const monthlyInvestment = plan.monthlySavings;
+        const totalInvested = monthlyInvestment * 6;
+
+        // Split low risk between FDs and bonds
+        const lowRiskAmount = totalInvested * (plan.allocation.lowRisk / 100);
+        const fdAmount = lowRiskAmount * 0.6;
+        const bondsAmount = lowRiskAmount * 0.4;
+
+        // Split moderate risk between mutual funds and gold
+        const moderateRiskAmount = totalInvested * (plan.allocation.moderateRisk / 100);
+        const mutualFundsAmount = moderateRiskAmount * 0.7;
+        const goldAmount = moderateRiskAmount * 0.3;
+
+        // Split high risk between stocks and REITs
+        const highRiskAmount = totalInvested * (plan.allocation.highRisk / 100);
+        const stocksAmount = highRiskAmount * 0.8;
+        const reitsAmount = highRiskAmount * 0.2;
+
         return {
-            lowRisk: ((currentAssets.fixedDeposits + currentAssets.bonds) / total * 100).toFixed(1),
-            moderateRisk: (currentAssets.hybridFunds / total * 100).toFixed(1),
-            highRisk: ((currentAssets.stocks + currentAssets.mutualFunds) / total * 100).toFixed(1)
+            fixedDeposits: fdAmount,
+            bonds: bondsAmount,
+            mutualFunds: mutualFundsAmount,
+            stocks: stocksAmount,
+            gold: goldAmount,
+            reits: reitsAmount,
+            currentNetWorth: portfolio.currentNetWorth // Preserve current net worth
         };
     };
 
-    const getRebalancingNeeds = () => {
-        const total = getTotalAssets();
-        const current = getCurrentAllocation();
-        const targetLowRisk = plan.lowRisk;
-        const targetModerateRisk = plan.moderateRisk;
-        const targetHighRisk = plan.highRisk;
-
-        return {
-            lowRisk: ((targetLowRisk - parseFloat(current.lowRisk)) * total / 100).toFixed(0),
-            moderateRisk: ((targetModerateRisk - parseFloat(current.moderateRisk)) * total / 100).toFixed(0),
-            highRisk: ((targetHighRisk - parseFloat(current.highRisk)) * total / 100).toFixed(0)
-        };
+    // Auto-fill portfolio with suggested values
+    const autoFillPortfolio = () => {
+        const suggested = calculateSuggestedPortfolio();
+        setPortfolio(prev => ({
+            ...suggested,
+            currentNetWorth: prev.currentNetWorth // Preserve current net worth
+        }));
     };
 
-    const handleAssetChange = (
-        type: keyof CurrentAssets,
-        value: number
-    ) => {
-        const newAssets = { ...currentAssets, [type]: value };
-        setCurrentAssets(newAssets);
-        onExecutionUpdate(newAssets);
+    // Reset portfolio to zero
+    const resetPortfolio = () => {
+        setPortfolio({
+            fixedDeposits: 0,
+            bonds: 0,
+            mutualFunds: 0,
+            stocks: 0,
+            gold: 0,
+            reits: 0,
+            currentNetWorth: 0
+        });
     };
 
-    const barChartData = {
-        labels: ['Low Risk', 'Moderate Risk', 'High Risk'],
-        datasets: [
-            {
-                label: 'Current Allocation (%)',
-                data: [
-                    parseFloat(getCurrentAllocation().lowRisk),
-                    parseFloat(getCurrentAllocation().moderateRisk),
-                    parseFloat(getCurrentAllocation().highRisk)
-                ],
-                backgroundColor: 'rgba(79, 70, 229, 0.8)'
-            },
-            {
-                label: 'Target Allocation (%)',
-                data: [plan.lowRisk, plan.moderateRisk, plan.highRisk],
-                backgroundColor: 'rgba(99, 102, 241, 0.4)'
-            }
-        ]
+    // Calculate current allocation percentages
+    const calculateCurrentAllocation = () => {
+        const total = Object.values(portfolio).reduce((sum, value) => sum + value, 0) - portfolio.currentNetWorth;
+        if (total === 0) return { lowRisk: 0, moderateRisk: 0, highRisk: 0 };
+
+        const lowRisk = ((portfolio.fixedDeposits + portfolio.bonds) / total) * 100;
+        const moderateRisk = ((portfolio.mutualFunds + portfolio.gold) / total) * 100;
+        const highRisk = ((portfolio.stocks + portfolio.reits) / total) * 100;
+
+        return { lowRisk, moderateRisk, highRisk };
     };
 
-    const rebalancingNeeds = getRebalancingNeeds();
+    // Check if rebalancing is needed
+    const checkRebalancingNeeds = () => {
+        const currentAllocation = calculateCurrentAllocation();
+        const threshold = 5; // 5% deviation threshold
+
+        const needs = [];
+        if (Math.abs(currentAllocation.lowRisk - plan.allocation.lowRisk) > threshold) {
+            needs.push({
+                category: 'Low Risk (FDs & Bonds)',
+                current: currentAllocation.lowRisk,
+                target: plan.allocation.lowRisk,
+                action: currentAllocation.lowRisk < plan.allocation.lowRisk ? 'increase' : 'decrease'
+            });
+        }
+
+        if (Math.abs(currentAllocation.moderateRisk - plan.allocation.moderateRisk) > threshold) {
+            needs.push({
+                category: 'Moderate Risk (Mutual Funds & Gold)',
+                current: currentAllocation.moderateRisk,
+                target: plan.allocation.moderateRisk,
+                action: currentAllocation.moderateRisk < plan.allocation.moderateRisk ? 'increase' : 'decrease'
+            });
+        }
+
+        if (Math.abs(currentAllocation.highRisk - plan.allocation.highRisk) > threshold) {
+            needs.push({
+                category: 'High Risk (Stocks & REITs)',
+                current: currentAllocation.highRisk,
+                target: plan.allocation.highRisk,
+                action: currentAllocation.highRisk < plan.allocation.highRisk ? 'increase' : 'decrease'
+            });
+        }
+
+        return needs;
+    };
+
+    // Update execution status
+    useEffect(() => {
+        const totalInvested = Object.values(portfolio).reduce((sum, value) => sum + value, 0) - portfolio.currentNetWorth;
+        const suggestedTotal = Object.values(calculateSuggestedPortfolio()).reduce((sum, value) => sum + value, 0) - portfolio.currentNetWorth;
+        
+        const progress = (totalInvested / suggestedTotal) * 100;
+        let message = '';
+        let isOnTrack = true;
+
+        if (progress >= 95) {
+            message = 'Excellent! You are ahead of your investment plan.';
+        } else if (progress >= 85) {
+            message = 'Good job! You are on track with your investment plan.';
+        } else if (progress >= 70) {
+            message = 'You are slightly behind. Consider increasing your investments.';
+            isOnTrack = false;
+        } else {
+            message = 'You are significantly behind. Please review your investment strategy.';
+            isOnTrack = false;
+        }
+
+        setExecutionStatus({ isOnTrack, message, progress });
+    }, [portfolio, plan]);
+
+    useEffect(() => {
+        onAssetsUpdated(portfolio);
+    }, [portfolio, onAssetsUpdated]);
+
+    const handlePortfolioChange = (asset: keyof Portfolio, value: string) => {
+        const numValue = value === '' ? 0 : parseFloat(value);
+        setPortfolio(currentPortfolio => {
+            const updatedPortfolio = {
+                ...currentPortfolio,
+                [asset]: numValue
+            };
+            onAssetsUpdated(updatedPortfolio);
+            return updatedPortfolio;
+        });
+    };
 
     return (
-        <div className={styles['execute-component']}>
-            <h2>Execute Your Investment Plan</h2>
+        <div>
+            <div className={styles['section-header']}>
+                <h2>Execute Your Plan</h2>
+                <div>
+                    <button className={styles['reset-button']} onClick={autoFillPortfolio}>
+                        Auto-fill Portfolio
+                    </button>
+                    <button className={styles['reset-button']} onClick={resetPortfolio}>
+                        Reset
+                    </button>
+                </div>
+            </div>
 
-            <div className={styles['current-assets']}>
-                <h3>Current Assets</h3>
-                <div className={styles['asset-inputs']}>
-                    <div className={styles['input-group']}>
-                        <label>
-                            Fixed Deposits
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={currentAssets.fixedDeposits}
-                                    onChange={(e) => handleAssetChange('fixedDeposits', Number(e.target.value))}
-                                    step={100000} // 1 lakh steps
-                                    min={0}
-                                    aria-label="Fixed deposits amount in rupees"
-                                />
-                                <span className={styles['input-icon']}>₹</span>
+            <div className={styles['input-group']}>
+                <h4>Current Net Worth</h4>
+                <div className={styles['asset-category']}>
+                    <div className={styles['asset-type']}>
+                        <h5>Total Net Worth</h5>
+                        <p className={styles['asset-description']}>
+                            Your total current wealth including all assets and investments. This forms the foundation of your retirement planning.
+                            For your age, a typical net worth would be around ₹1 crore, but this can vary based on your circumstances.
+                        </p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Value</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.currentNetWorth || ''}
+                                        onChange={(e) => handlePortfolioChange('currentNetWorth', e.target.value)}
+                                        step="100000"
+                                        min="0"
+                                    />
+                                </div>
+                                <p className={styles['input-helper']}>
+                                    Current Net Worth: {formatIndianCurrency(portfolio.currentNetWorth)}
+                                </p>
                             </div>
-                        </label>
-                    </div>
-
-                    <div className={styles['input-group']}>
-                        <label>
-                            Bonds
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={currentAssets.bonds}
-                                    onChange={(e) => handleAssetChange('bonds', Number(e.target.value))}
-                                    step={100000} // 1 lakh steps
-                                    min={0}
-                                    aria-label="Bonds amount in rupees"
-                                />
-                                <span className={styles['input-icon']}>₹</span>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-display']}>
+                                    {formatIndianCurrency(portfolio.currentNetWorth + (plan.monthlySavings * 6))}
+                                </div>
+                                <p className={styles['input-helper']}>
+                                    Expected growth with monthly savings
+                                </p>
                             </div>
-                        </label>
-                    </div>
-
-                    <div className={styles['input-group']}>
-                        <label>
-                            Hybrid Funds
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={currentAssets.hybridFunds}
-                                    onChange={(e) => handleAssetChange('hybridFunds', Number(e.target.value))}
-                                    step={100000} // 1 lakh steps
-                                    min={0}
-                                    aria-label="Hybrid funds amount in rupees"
-                                />
-                                <span className={styles['input-icon']}>₹</span>
-                            </div>
-                        </label>
-                    </div>
-
-                    <div className={styles['input-group']}>
-                        <label>
-                            Stocks
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={currentAssets.stocks}
-                                    onChange={(e) => handleAssetChange('stocks', Number(e.target.value))}
-                                    step={100000} // 1 lakh steps
-                                    min={0}
-                                    aria-label="Stocks amount in rupees"
-                                />
-                                <span className={styles['input-icon']}>₹</span>
-                            </div>
-                        </label>
-                    </div>
-
-                    <div className={styles['input-group']}>
-                        <label>
-                            Mutual Funds
-                            <div className={styles['input-wrapper']}>
-                                <input
-                                    type="number"
-                                    value={currentAssets.mutualFunds}
-                                    onChange={(e) => handleAssetChange('mutualFunds', Number(e.target.value))}
-                                    step={100000} // 1 lakh steps
-                                    min={0}
-                                    aria-label="Mutual funds amount in rupees"
-                                />
-                                <span className={styles['input-icon']}>₹</span>
-                            </div>
-                        </label>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className={styles['chart-container']}>
-                <Bar 
-                    data={barChartData}
-                    options={{
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'top' as const,
-                            },
-                            title: {
-                                display: true,
-                                text: 'Current vs Target Allocation',
-                                color: '#1e293b',
-                                font: {
-                                    size: 16,
-                                    weight: 'bold'
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => `${context.dataset.label}: ${context.parsed.y}%`
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                title: {
-                                    display: true,
-                                    text: 'Allocation (%)',
-                                    color: '#64748b'
-                                }
-                            }
-                        }
-                    }}
-                />
+            <div className={styles['execution-status']}>
+                <h3>Execution Status</h3>
+                <p>{executionStatus.message}</p>
+                <p>Progress: {executionStatus.progress.toFixed(1)}%</p>
             </div>
 
-            <div className={styles.result}>
-                <h3>Portfolio Analysis</h3>
-                <div className={styles['summary-stats']}>
-                    <div className={styles['stat-item']}>
-                        <span>Total Portfolio Value:</span>
-                        <strong>{formatIndianCurrency(getTotalAssets())}</strong>
+            <div className={styles['input-group']}>
+                <h4>Low Risk Assets</h4>
+                <div className={styles['asset-category']}>
+                    <div className={styles['asset-type']}>
+                        <h5>Fixed Deposits (FDs)</h5>
+                        <p className={styles['asset-description']}>Traditional bank deposits with guaranteed returns</p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Investment</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.fixedDeposits || ''}
+                                        onChange={(e) => handlePortfolioChange('fixedDeposits', e.target.value)}
+                                        step="1000"
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-amount']}>
+                                    ₹{calculateSuggestedPortfolio().fixedDeposits.toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className={styles['stat-item']}>
-                        <span>Target Corpus:</span>
-                        <strong>{formatIndianCurrency(targetCorpus)}</strong>
-                    </div>
-                    <div className={styles['stat-item']}>
-                        <span>Corpus Gap:</span>
-                        <strong>{formatIndianCurrency(targetCorpus - getTotalAssets())}</strong>
+
+                    <div className={styles['asset-type']}>
+                        <h5>Bonds</h5>
+                        <p className={styles['asset-description']}>Government and corporate debt securities</p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Investment</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.bonds || ''}
+                                        onChange={(e) => handlePortfolioChange('bonds', e.target.value)}
+                                        step="1000"
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-amount']}>
+                                    ₹{calculateSuggestedPortfolio().bonds.toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
+            <div className={styles['input-group']}>
+                <h4>Moderate Risk Assets</h4>
+                <div className={styles['asset-category']}>
+                    <div className={styles['asset-type']}>
+                        <h5>Mutual Funds</h5>
+                        <p className={styles['asset-description']}>Diversified investment portfolios managed by professionals</p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Investment</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.mutualFunds || ''}
+                                        onChange={(e) => handlePortfolioChange('mutualFunds', e.target.value)}
+                                        step="1000"
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-amount']}>
+                                    ₹{calculateSuggestedPortfolio().mutualFunds.toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={styles['asset-type']}>
+                        <h5>Gold</h5>
+                        <p className={styles['asset-description']}>Physical gold or gold-based investment instruments</p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Investment</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.gold || ''}
+                                        onChange={(e) => handlePortfolioChange('gold', e.target.value)}
+                                        step="1000"
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-amount']}>
+                                    ₹{calculateSuggestedPortfolio().gold.toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles['input-group']}>
+                <h4>High Risk Assets</h4>
+                <div className={styles['asset-category']}>
+                    <div className={styles['asset-type']}>
+                        <h5>Stocks</h5>
+                        <p className={styles['asset-description']}>Equity shares of publicly traded companies</p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Investment</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.stocks || ''}
+                                        onChange={(e) => handlePortfolioChange('stocks', e.target.value)}
+                                        step="1000"
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-amount']}>
+                                    ₹{calculateSuggestedPortfolio().stocks.toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={styles['asset-type']}>
+                        <h5>REITs</h5>
+                        <p className={styles['asset-description']}>Real estate investment trusts</p>
+                        <div className={styles['input-row']}>
+                            <div className={styles['input-column']}>
+                                <div className={styles['input-label']}>
+                                    <span>Current Investment</span>
+                                    <span className={styles['currency-symbol']}>₹</span>
+                                </div>
+                                <div className={styles['currency-input']}>
+                                    <input
+                                        type="number"
+                                        value={portfolio.reits || ''}
+                                        onChange={(e) => handlePortfolioChange('reits', e.target.value)}
+                                        step="1000"
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles['input-column']}>
+                                <label>Target (6 Months)</label>
+                                <div className={styles['target-amount']}>
+                                    ₹{calculateSuggestedPortfolio().reits.toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles['allocation-stats']}>
+                <h4>Current Asset Allocation</h4>
+                {Object.entries(calculateCurrentAllocation()).map(([category, percentage]) => (
+                    <div key={category} className={styles['allocation-item']}>
+                        <span>{category.replace(/([A-Z])/g, ' $1').trim()}: {percentage.toFixed(1)}%</span>
+                        <div className={styles['allocation-bar']}>
+                            <div
+                                className={styles['allocation-fill']}
+                                style={{
+                                    width: `${percentage}%`,
+                                    backgroundColor: category === 'lowRisk' ? '#34d399' :
+                                        category === 'moderateRisk' ? '#fbbf24' : '#f87171'
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {checkRebalancingNeeds().length > 0 && (
                 <div className={styles['rebalancing-needs']}>
-                    <h4>Rebalancing Required</h4>
-                    <div className={styles['rebalancing-items']}>
-                        <div className={styles['rebalancing-item']}>
-                            <span>Low Risk Assets:</span>
-                            <strong className={parseFloat(rebalancingNeeds.lowRisk) > 0 ? styles.positive : styles.negative}>
-                                {parseFloat(rebalancingNeeds.lowRisk) > 0 ? '+' : ''}{formatIndianCurrency(parseFloat(rebalancingNeeds.lowRisk))}
-                            </strong>
-                        </div>
-                        <div className={styles['rebalancing-item']}>
-                            <span>Moderate Risk Assets:</span>
-                            <strong className={parseFloat(rebalancingNeeds.moderateRisk) > 0 ? styles.positive : styles.negative}>
-                                {parseFloat(rebalancingNeeds.moderateRisk) > 0 ? '+' : ''}{formatIndianCurrency(parseFloat(rebalancingNeeds.moderateRisk))}
-                            </strong>
-                        </div>
-                        <div className={styles['rebalancing-item']}>
-                            <span>High Risk Assets:</span>
-                            <strong className={parseFloat(rebalancingNeeds.highRisk) > 0 ? styles.positive : styles.negative}>
-                                {parseFloat(rebalancingNeeds.highRisk) > 0 ? '+' : ''}{formatIndianCurrency(parseFloat(rebalancingNeeds.highRisk))}
-                            </strong>
-                        </div>
-                    </div>
+                    <h4>Rebalancing Suggestions</h4>
+                    <ul>
+                        {checkRebalancingNeeds().map((need, index) => (
+                            <li key={index} className={styles[need.action]}>
+                                {need.category}: {need.action === 'increase' ? 'Increase' : 'Decrease'} allocation
+                                from {need.current.toFixed(1)}% to {need.target.toFixed(1)}%
+                            </li>
+                        ))}
+                    </ul>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
-
-export default ExecuteComponent;
