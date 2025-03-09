@@ -21,7 +21,8 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
             moderateRisk: 40,
             highRisk: 30
         },
-        savingsGrowthRate: 7 // Conservative 7% return for Indian markets
+        savingsGrowthRate: 7, // Conservative 7% return for Indian markets
+        currentNetWorth: 10000000 // Default ₹1 crore as per Indian context
     });
     const [currentAssets, setCurrentAssets] = useState({
         fixedDeposits: 0,
@@ -30,7 +31,16 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
         stocks: 0,
         gold: 0,
         reits: 0,
-        currentNetWorth: 0
+        currentNetWorth: 0,
+        monthlyInvestments: {
+            fixedDeposits: 0,
+            bonds: 0,
+            mutualFunds: 0,
+            stocks: 0,
+            gold: 0,
+            reits: 0,
+            total: 0
+        }
     });
 
     const handleTargetCalculated = (target: number, age: number, retirement: number) => {
@@ -40,15 +50,20 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
         
         // Set default current net worth based on age
         const baseNetWorth = 10000000; // ₹1 crore at age 36
+        let newNetWorth: number;
+        
         if (age <= 36) {
             // Scale down by 10% per year for younger ages
             const scaleFactor = Math.pow(0.9, 36 - age);
-            setCurrentAssets(prev => ({ ...prev, currentNetWorth: baseNetWorth * scaleFactor }));
+            newNetWorth = baseNetWorth * scaleFactor;
         } else {
             // Scale up by 8% per year for older ages
             const scaleFactor = Math.pow(1.08, age - 36);
-            setCurrentAssets(prev => ({ ...prev, currentNetWorth: baseNetWorth * scaleFactor }));
+            newNetWorth = baseNetWorth * scaleFactor;
         }
+        
+        setCurrentAssets(prev => ({ ...prev, currentNetWorth: newNetWorth }));
+        setPlan(prev => ({ ...prev, currentNetWorth: newNetWorth }));
     };
 
     const handlePlanSet = (newPlan: {
@@ -67,12 +82,13 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
                 moderateRisk: newPlan.moderateRisk,
                 highRisk: newPlan.highRisk
             },
-            savingsGrowthRate: newPlan.savingsGrowthRate
+            savingsGrowthRate: newPlan.savingsGrowthRate,
+            currentNetWorth: currentAssets.currentNetWorth
         });
     };
 
-    const handleAssetsUpdated = (assets: typeof currentAssets) => {
-        setCurrentAssets(assets);
+    const handleAssetsUpdated = (updatedAssets: typeof currentAssets) => {
+        setCurrentAssets(updatedAssets);
     };
 
     const moveToStep = (stepId: typeof activeStep) => {
@@ -155,7 +171,7 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
             </div>
 
             <div className={styles['navigation']}>
-                {activeStep !== 'target' && (
+                {activeStep !== 'target' && activeStep !== 'plan' && (
                     <button
                         className={styles['nav-button']}
                         onClick={() => {
@@ -166,7 +182,7 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
                         Previous
                     </button>
                 )}
-                {activeStep !== 'review' && (
+                {activeStep !== 'review' && activeStep !== 'plan' && (
                     <button
                         className={styles['nav-button']}
                         onClick={() => {

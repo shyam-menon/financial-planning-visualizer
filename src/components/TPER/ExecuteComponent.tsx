@@ -11,6 +11,7 @@ interface ExecuteComponentProps {
             moderateRisk: number;
             highRisk: number;
         };
+        currentNetWorth: number;
     };
     onAssetsUpdated: (assets: Portfolio) => void;
 }
@@ -23,6 +24,15 @@ interface Portfolio {
     gold: number;
     reits: number;
     currentNetWorth: number;
+    monthlyInvestments: {
+        fixedDeposits: number;
+        bonds: number;
+        mutualFunds: number;
+        stocks: number;
+        gold: number;
+        reits: number;
+        total: number;
+    };
 }
 
 export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAssetsUpdated }) => {
@@ -33,7 +43,16 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         stocks: 0,
         gold: 0,
         reits: 0,
-        currentNetWorth: 0
+        currentNetWorth: plan.currentNetWorth,
+        monthlyInvestments: {
+            fixedDeposits: 0,
+            bonds: 0,
+            mutualFunds: 0,
+            stocks: 0,
+            gold: 0,
+            reits: 0,
+            total: 0
+        }
     });
 
     const [executionStatus, setExecutionStatus] = useState({
@@ -55,72 +74,254 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         return `₹${amount}`;
     };
 
-    // Calculate suggested portfolio based on current net worth and 6 months of execution
-    const calculateSuggestedPortfolio = () => {
-        const monthlyInvestment = plan.monthlySavings;
-        const totalInvested = monthlyInvestment * 6;
-
-        // Split low risk between FDs and bonds
-        const lowRiskAmount = totalInvested * (plan.allocation.lowRisk / 100);
-        const fdAmount = lowRiskAmount * 0.6;
-        const bondsAmount = lowRiskAmount * 0.4;
-
-        // Split moderate risk between mutual funds and gold
-        const moderateRiskAmount = totalInvested * (plan.allocation.moderateRisk / 100);
-        const mutualFundsAmount = moderateRiskAmount * 0.7;
-        const goldAmount = moderateRiskAmount * 0.3;
-
-        // Split high risk between stocks and REITs
-        const highRiskAmount = totalInvested * (plan.allocation.highRisk / 100);
-        const stocksAmount = highRiskAmount * 0.8;
-        const reitsAmount = highRiskAmount * 0.2;
-
-        return {
-            fixedDeposits: fdAmount,
-            bonds: bondsAmount,
-            mutualFunds: mutualFundsAmount,
-            stocks: stocksAmount,
-            gold: goldAmount,
-            reits: reitsAmount,
-            currentNetWorth: portfolio.currentNetWorth // Preserve current net worth
+    const handlePortfolioChange = (field: keyof Portfolio, value: string) => {
+        const numericValue = value === '' ? 0 : parseFloat(value);
+        const updatedPortfolio = {
+            ...portfolio,
+            [field]: numericValue
         };
-    };
+        
+        // Update monthly investments
+        const monthlyTotal = Object.values({
+            fixedDeposits: updatedPortfolio.fixedDeposits,
+            bonds: updatedPortfolio.bonds,
+            mutualFunds: updatedPortfolio.mutualFunds,
+            stocks: updatedPortfolio.stocks,
+            gold: updatedPortfolio.gold,
+            reits: updatedPortfolio.reits
+        }).reduce((sum, value) => sum + value, 0);
 
-    // Auto-fill portfolio with suggested values
-    const autoFillPortfolio = () => {
+        updatedPortfolio.monthlyInvestments = {
+            fixedDeposits: updatedPortfolio.fixedDeposits,
+            bonds: updatedPortfolio.bonds,
+            mutualFunds: updatedPortfolio.mutualFunds,
+            stocks: updatedPortfolio.stocks,
+            gold: updatedPortfolio.gold,
+            reits: updatedPortfolio.reits,
+            total: monthlyTotal
+        };
+
+        setPortfolio(updatedPortfolio);
+        onAssetsUpdated(updatedPortfolio);
+
+        // Calculate progress based on monthly investment targets
         const suggested = calculateSuggestedPortfolio();
-        setPortfolio(prev => ({
-            ...suggested,
-            currentNetWorth: prev.currentNetWorth // Preserve current net worth
-        }));
-    };
+        const targetMonthly = suggested.monthlyInvestments.total;
+        const progress = Math.min((monthlyTotal / targetMonthly) * 100, 100);
 
-    // Reset portfolio to zero
-    const resetPortfolio = () => {
-        setPortfolio({
-            fixedDeposits: 0,
-            bonds: 0,
-            mutualFunds: 0,
-            stocks: 0,
-            gold: 0,
-            reits: 0,
-            currentNetWorth: 0
+        // Update execution status with Indian context-aware messages
+        let message = '';
+        if (progress >= 90) {
+            message = 'Excellent! Your monthly investments are well-aligned with the target.';
+        } else if (progress >= 75) {
+            message = 'Good progress! Your monthly investment plan is on track.';
+        } else if (progress >= 50) {
+            message = 'You are following the plan. Keep maintaining your monthly investments.';
+        } else if (progress >= 25) {
+            message = 'Getting started with your monthly investment plan.';
+        } else {
+            message = 'Begin your monthly investments as per the suggested allocation.';
+        }
+
+        setExecutionStatus({
+            isOnTrack: progress >= 75,
+            message,
+            progress
         });
     };
 
-    // Calculate current allocation percentages
-    const calculateCurrentAllocation = () => {
-        const total = Object.values(portfolio).reduce((sum, value) => sum + value, 0) - portfolio.currentNetWorth;
-        if (total === 0) return { lowRisk: 0, moderateRisk: 0, highRisk: 0 };
+    const updateMonthlyInvestments = (newPortfolio: Portfolio) => {
+        const suggested = calculateSuggestedPortfolio();
+        
+        // If we're just starting out, use the suggested monthly investments
+        const hasNoInvestments = Object.values({
+            fixedDeposits: newPortfolio.fixedDeposits,
+            bonds: newPortfolio.bonds,
+            mutualFunds: newPortfolio.mutualFunds,
+            stocks: newPortfolio.stocks,
+            gold: newPortfolio.gold,
+            reits: newPortfolio.reits
+        }).every(value => value === 0);
 
-        const lowRisk = ((portfolio.fixedDeposits + portfolio.bonds) / total) * 100;
-        const moderateRisk = ((portfolio.mutualFunds + portfolio.gold) / total) * 100;
-        const highRisk = ((portfolio.stocks + portfolio.reits) / total) * 100;
+        if (hasNoInvestments) {
+            return {
+                ...newPortfolio,
+                monthlyInvestments: suggested.monthlyInvestments
+            };
+        }
+
+        // If we've reached or exceeded all targets, maintain the original allocation
+        const hasReachedTargets = Object.entries({
+            fixedDeposits: newPortfolio.fixedDeposits >= suggested.fixedDeposits,
+            bonds: newPortfolio.bonds >= suggested.bonds,
+            mutualFunds: newPortfolio.mutualFunds >= suggested.mutualFunds,
+            stocks: newPortfolio.stocks >= suggested.stocks,
+            gold: newPortfolio.gold >= suggested.gold,
+            reits: newPortfolio.reits >= suggested.reits
+        }).every(([_, hasReached]) => hasReached);
+
+        if (hasReachedTargets) {
+            return {
+                ...newPortfolio,
+                monthlyInvestments: suggested.monthlyInvestments
+            };
+        }
+
+        // Calculate remaining amounts to reach targets
+        const remaining = {
+            fixedDeposits: Math.max(0, suggested.fixedDeposits - newPortfolio.fixedDeposits),
+            bonds: Math.max(0, suggested.bonds - newPortfolio.bonds),
+            mutualFunds: Math.max(0, suggested.mutualFunds - newPortfolio.mutualFunds),
+            stocks: Math.max(0, suggested.stocks - newPortfolio.stocks),
+            gold: Math.max(0, suggested.gold - newPortfolio.gold),
+            reits: Math.max(0, suggested.reits - newPortfolio.reits)
+        };
+
+        // Calculate monthly investments based on remaining amounts
+        const monthlyTotal = plan.monthlySavings;
+        const totalRemaining = Object.values(remaining).reduce((sum, value) => sum + value, 0);
+
+        const monthlyInvestments = {
+            fixedDeposits: Math.round((remaining.fixedDeposits / totalRemaining) * monthlyTotal),
+            bonds: Math.round((remaining.bonds / totalRemaining) * monthlyTotal),
+            mutualFunds: Math.round((remaining.mutualFunds / totalRemaining) * monthlyTotal),
+            stocks: Math.round((remaining.stocks / totalRemaining) * monthlyTotal),
+            gold: Math.round((remaining.gold / totalRemaining) * monthlyTotal),
+            reits: Math.round((remaining.reits / totalRemaining) * monthlyTotal),
+            total: monthlyTotal
+        };
+
+        // Adjust for rounding errors
+        const actualTotal = Object.values(monthlyInvestments).reduce((sum, value) => sum + value, 0) - monthlyInvestments.total;
+        const adjustment = monthlyTotal - actualTotal;
+
+        if (adjustment !== 0) {
+            // Add adjustment to mutual funds (largest allocation)
+            monthlyInvestments.mutualFunds += adjustment;
+        }
+
+        return {
+            ...newPortfolio,
+            monthlyInvestments
+        };
+    };
+
+    const calculateSuggestedPortfolio = (): Portfolio => {
+        const monthlyInvestment = plan.monthlySavings;
+
+        // Calculate monthly breakdown based on plan allocation
+        // Low risk assets: Fixed Deposits (60%) and Bonds (40%)
+        const lowRiskMonthly = monthlyInvestment * (plan.allocation.lowRisk / 100);
+        const fdMonthly = Math.round(lowRiskMonthly * 0.6); // FDs are preferred in Indian context
+        const bondsMonthly = lowRiskMonthly - fdMonthly; // Ensure exact allocation
+
+        // Moderate risk: Mutual Funds (70%) and Gold (30%)
+        const moderateRiskMonthly = monthlyInvestment * (plan.allocation.moderateRisk / 100);
+        const mfMonthly = Math.round(moderateRiskMonthly * 0.7); // Higher allocation to MFs in Indian market
+        const goldMonthly = moderateRiskMonthly - mfMonthly; // Ensure exact allocation
+
+        // High risk: Stocks (80%) and REITs (20%)
+        const highRiskMonthly = monthlyInvestment * (plan.allocation.highRisk / 100);
+        const stocksMonthly = Math.round(highRiskMonthly * 0.8);
+        const reitsMonthly = highRiskMonthly - stocksMonthly; // Ensure exact allocation
+
+        // Round all values to nearest ₹1,000 as per Indian investment patterns
+        const monthlyBreakdown = {
+            fixedDeposits: Math.round(fdMonthly / 1000) * 1000,
+            bonds: Math.round(bondsMonthly / 1000) * 1000,
+            mutualFunds: Math.round(mfMonthly / 1000) * 1000,
+            gold: Math.round(goldMonthly / 1000) * 1000,
+            stocks: Math.round(stocksMonthly / 1000) * 1000,
+            reits: Math.round(reitsMonthly / 1000) * 1000
+        };
+
+        // Adjust rounding differences to maintain exact monthly investment
+        const totalMonthly = Object.values(monthlyBreakdown).reduce((sum, value) => sum + value, 0);
+        const adjustment = monthlyInvestment - totalMonthly;
+        
+        // Add any rounding adjustment to mutual funds (typically largest allocation)
+        if (adjustment !== 0) {
+            monthlyBreakdown.mutualFunds += adjustment;
+        }
+
+        return {
+            fixedDeposits: monthlyBreakdown.fixedDeposits,
+            bonds: monthlyBreakdown.bonds,
+            mutualFunds: monthlyBreakdown.mutualFunds,
+            stocks: monthlyBreakdown.stocks,
+            gold: monthlyBreakdown.gold,
+            reits: monthlyBreakdown.reits,
+            currentNetWorth: plan.currentNetWorth,
+            monthlyInvestments: {
+                ...monthlyBreakdown,
+                total: monthlyInvestment
+            }
+        };
+    };
+
+    const resetPortfolio = () => {
+        const suggested = calculateSuggestedPortfolio();
+        const defaultPortfolio = {
+            fixedDeposits: suggested.monthlyInvestments.fixedDeposits,
+            bonds: suggested.monthlyInvestments.bonds,
+            mutualFunds: suggested.monthlyInvestments.mutualFunds,
+            stocks: suggested.monthlyInvestments.stocks,
+            gold: suggested.monthlyInvestments.gold,
+            reits: suggested.monthlyInvestments.reits,
+            currentNetWorth: plan.currentNetWorth,
+            monthlyInvestments: suggested.monthlyInvestments
+        };
+        setPortfolio(defaultPortfolio);
+        onAssetsUpdated(defaultPortfolio);
+        
+        setExecutionStatus({
+            isOnTrack: true,
+            message: 'Portfolio reset to default monthly investment plan.',
+            progress: 0
+        });
+    };
+
+    useEffect(() => {
+        const suggested = calculateSuggestedPortfolio();
+        const defaultPortfolio = {
+            fixedDeposits: suggested.monthlyInvestments.fixedDeposits,
+            bonds: suggested.monthlyInvestments.bonds,
+            mutualFunds: suggested.monthlyInvestments.mutualFunds,
+            stocks: suggested.monthlyInvestments.stocks,
+            gold: suggested.monthlyInvestments.gold,
+            reits: suggested.monthlyInvestments.reits,
+            currentNetWorth: plan.currentNetWorth,
+            monthlyInvestments: suggested.monthlyInvestments
+        };
+        setPortfolio(defaultPortfolio);
+        onAssetsUpdated(defaultPortfolio);
+        
+        setExecutionStatus({
+            isOnTrack: true,
+            message: 'Monthly investment plan initialized based on your target allocation.',
+            progress: 100
+        });
+    }, [plan]);
+
+    const calculateCurrentAllocation = () => {
+        // Calculate total invested amount excluding current net worth
+        const totalInvested = portfolio.fixedDeposits + 
+                            portfolio.bonds + 
+                            portfolio.mutualFunds + 
+                            portfolio.stocks + 
+                            portfolio.gold + 
+                            portfolio.reits;
+
+        if (totalInvested === 0) return { lowRisk: 0, moderateRisk: 0, highRisk: 0 };
+
+        // Calculate risk-based allocation percentages
+        const lowRisk = ((portfolio.fixedDeposits + portfolio.bonds) / totalInvested) * 100;
+        const moderateRisk = ((portfolio.mutualFunds + portfolio.gold) / totalInvested) * 100;
+        const highRisk = ((portfolio.stocks + portfolio.reits) / totalInvested) * 100;
 
         return { lowRisk, moderateRisk, highRisk };
     };
 
-    // Check if rebalancing is needed
     const checkRebalancingNeeds = () => {
         const currentAllocation = calculateCurrentAllocation();
         const threshold = 5; // 5% deviation threshold
@@ -156,54 +357,74 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         return needs;
     };
 
-    // Update execution status
-    useEffect(() => {
-        const totalInvested = Object.values(portfolio).reduce((sum, value) => sum + value, 0) - portfolio.currentNetWorth;
-        const suggestedTotal = Object.values(calculateSuggestedPortfolio()).reduce((sum, value) => sum + value, 0) - portfolio.currentNetWorth;
-        
-        const progress = (totalInvested / suggestedTotal) * 100;
-        let message = '';
-        let isOnTrack = true;
-
-        if (progress >= 95) {
-            message = 'Excellent! You are ahead of your investment plan.';
-        } else if (progress >= 85) {
-            message = 'Good job! You are on track with your investment plan.';
-        } else if (progress >= 70) {
-            message = 'You are slightly behind. Consider increasing your investments.';
-            isOnTrack = false;
-        } else {
-            message = 'You are significantly behind. Please review your investment strategy.';
-            isOnTrack = false;
-        }
-
-        setExecutionStatus({ isOnTrack, message, progress });
-    }, [portfolio, plan]);
-
     useEffect(() => {
         onAssetsUpdated(portfolio);
     }, [portfolio, onAssetsUpdated]);
 
-    const handlePortfolioChange = (asset: keyof Portfolio, value: string) => {
-        const numValue = value === '' ? 0 : parseFloat(value);
+    useEffect(() => {
+        // Update monthly investments whenever plan changes
         setPortfolio(currentPortfolio => {
-            const updatedPortfolio = {
-                ...currentPortfolio,
-                [asset]: numValue
-            };
+            const updatedPortfolio = updateMonthlyInvestments(currentPortfolio);
             onAssetsUpdated(updatedPortfolio);
             return updatedPortfolio;
         });
-    };
+    }, [plan.monthlySavings, plan.allocation]);
+
+    useEffect(() => {
+        // Update monthly investments whenever portfolio values change
+        const updatePortfolioWithMonthly = () => {
+            const totalAssets = Object.values({
+                fixedDeposits: portfolio.fixedDeposits,
+                bonds: portfolio.bonds,
+                mutualFunds: portfolio.mutualFunds,
+                stocks: portfolio.stocks,
+                gold: portfolio.gold,
+                reits: portfolio.reits
+            }).reduce((sum, value) => sum + value, 0);
+
+            // Calculate execution progress
+            const targetAmount = plan.monthlySavings * 6;
+            const progress = Math.min((totalAssets / targetAmount) * 100, 100);
+
+            let message = '';
+            let isOnTrack = true;
+
+            if (progress >= 90) {
+                message = 'Excellent progress! You are very close to your 6-month target.';
+            } else if (progress >= 75) {
+                message = 'Good progress! Keep maintaining your monthly investments.';
+            } else if (progress >= 50) {
+                message = 'You are on track. Continue with your investment plan.';
+            } else if (progress >= 25) {
+                message = 'Getting started well. Stay consistent with your investments.';
+                isOnTrack = true;
+            } else {
+                message = 'You are in the early stages. Focus on regular monthly investments.';
+                isOnTrack = true;
+            }
+
+            setExecutionStatus({
+                isOnTrack,
+                message,
+                progress
+            });
+
+            // Update monthly investments based on current portfolio allocation
+            const updatedPortfolio = updateMonthlyInvestments(portfolio);
+            if (JSON.stringify(updatedPortfolio) !== JSON.stringify(portfolio)) {
+                setPortfolio(updatedPortfolio);
+                onAssetsUpdated(updatedPortfolio);
+            }
+        };
+
+        updatePortfolioWithMonthly();
+    }, [portfolio.fixedDeposits, portfolio.bonds, portfolio.mutualFunds, portfolio.stocks, portfolio.gold, portfolio.reits, plan.monthlySavings]);
 
     return (
         <div>
             <div className={styles['section-header']}>
                 <h2>Execute Your Plan</h2>
                 <div>
-                    <button className={styles['reset-button']} onClick={autoFillPortfolio}>
-                        Auto-fill Portfolio
-                    </button>
                     <button className={styles['reset-button']} onClick={resetPortfolio}>
                         Reset
                     </button>
@@ -258,6 +479,40 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                 <p>Progress: {executionStatus.progress.toFixed(1)}%</p>
             </div>
 
+            <div className={styles['monthly-investments']}>
+                <h3>Monthly Investment Plan</h3>
+                <div className={styles['monthly-total']}>
+                    <span>Total Monthly Investment</span>
+                    <strong>{formatIndianCurrency(portfolio.monthlyInvestments.total)}</strong>
+                </div>
+                <div className={styles['monthly-breakdown']}>
+                    <div className={styles['breakdown-item']}>
+                        <span>Fixed Deposits</span>
+                        <span>{formatIndianCurrency(portfolio.monthlyInvestments.fixedDeposits)}</span>
+                    </div>
+                    <div className={styles['breakdown-item']}>
+                        <span>Bonds</span>
+                        <span>{formatIndianCurrency(portfolio.monthlyInvestments.bonds)}</span>
+                    </div>
+                    <div className={styles['breakdown-item']}>
+                        <span>Mutual Funds</span>
+                        <span>{formatIndianCurrency(portfolio.monthlyInvestments.mutualFunds)}</span>
+                    </div>
+                    <div className={styles['breakdown-item']}>
+                        <span>Stocks</span>
+                        <span>{formatIndianCurrency(portfolio.monthlyInvestments.stocks)}</span>
+                    </div>
+                    <div className={styles['breakdown-item']}>
+                        <span>Gold</span>
+                        <span>{formatIndianCurrency(portfolio.monthlyInvestments.gold)}</span>
+                    </div>
+                    <div className={styles['breakdown-item']}>
+                        <span>REITs</span>
+                        <span>{formatIndianCurrency(portfolio.monthlyInvestments.reits)}</span>
+                    </div>
+                </div>
+            </div>
+
             <div className={styles['input-group']}>
                 <h4>Low Risk Assets</h4>
                 <div className={styles['asset-category']}>
@@ -267,7 +522,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                         <div className={styles['input-row']}>
                             <div className={styles['input-column']}>
                                 <div className={styles['input-label']}>
-                                    <span>Current Investment</span>
+                                    <span>Monthly Investment</span>
                                     <span className={styles['currency-symbol']}>₹</span>
                                 </div>
                                 <div className={styles['currency-input']}>
@@ -278,11 +533,14 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                                         step="1000"
                                     />
                                 </div>
+                                <p className={styles['input-helper']}>
+                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.fixedDeposits)}
+                                </p>
                             </div>
                             <div className={styles['input-column']}>
                                 <label>Target (6 Months)</label>
                                 <div className={styles['target-amount']}>
-                                    ₹{calculateSuggestedPortfolio().fixedDeposits.toLocaleString('en-IN')}
+                                    {formatIndianCurrency(portfolio.fixedDeposits * 6)}
                                 </div>
                             </div>
                         </div>
@@ -294,7 +552,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                         <div className={styles['input-row']}>
                             <div className={styles['input-column']}>
                                 <div className={styles['input-label']}>
-                                    <span>Current Investment</span>
+                                    <span>Monthly Investment</span>
                                     <span className={styles['currency-symbol']}>₹</span>
                                 </div>
                                 <div className={styles['currency-input']}>
@@ -305,11 +563,14 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                                         step="1000"
                                     />
                                 </div>
+                                <p className={styles['input-helper']}>
+                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.bonds)}
+                                </p>
                             </div>
                             <div className={styles['input-column']}>
                                 <label>Target (6 Months)</label>
                                 <div className={styles['target-amount']}>
-                                    ₹{calculateSuggestedPortfolio().bonds.toLocaleString('en-IN')}
+                                    {formatIndianCurrency(portfolio.bonds * 6)}
                                 </div>
                             </div>
                         </div>
@@ -326,7 +587,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                         <div className={styles['input-row']}>
                             <div className={styles['input-column']}>
                                 <div className={styles['input-label']}>
-                                    <span>Current Investment</span>
+                                    <span>Monthly Investment</span>
                                     <span className={styles['currency-symbol']}>₹</span>
                                 </div>
                                 <div className={styles['currency-input']}>
@@ -337,11 +598,14 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                                         step="1000"
                                     />
                                 </div>
+                                <p className={styles['input-helper']}>
+                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.mutualFunds)}
+                                </p>
                             </div>
                             <div className={styles['input-column']}>
                                 <label>Target (6 Months)</label>
                                 <div className={styles['target-amount']}>
-                                    ₹{calculateSuggestedPortfolio().mutualFunds.toLocaleString('en-IN')}
+                                    {formatIndianCurrency(portfolio.mutualFunds * 6)}
                                 </div>
                             </div>
                         </div>
@@ -353,7 +617,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                         <div className={styles['input-row']}>
                             <div className={styles['input-column']}>
                                 <div className={styles['input-label']}>
-                                    <span>Current Investment</span>
+                                    <span>Monthly Investment</span>
                                     <span className={styles['currency-symbol']}>₹</span>
                                 </div>
                                 <div className={styles['currency-input']}>
@@ -364,11 +628,14 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                                         step="1000"
                                     />
                                 </div>
+                                <p className={styles['input-helper']}>
+                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.gold)}
+                                </p>
                             </div>
                             <div className={styles['input-column']}>
                                 <label>Target (6 Months)</label>
                                 <div className={styles['target-amount']}>
-                                    ₹{calculateSuggestedPortfolio().gold.toLocaleString('en-IN')}
+                                    {formatIndianCurrency(portfolio.gold * 6)}
                                 </div>
                             </div>
                         </div>
@@ -385,7 +652,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                         <div className={styles['input-row']}>
                             <div className={styles['input-column']}>
                                 <div className={styles['input-label']}>
-                                    <span>Current Investment</span>
+                                    <span>Monthly Investment</span>
                                     <span className={styles['currency-symbol']}>₹</span>
                                 </div>
                                 <div className={styles['currency-input']}>
@@ -396,11 +663,14 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                                         step="1000"
                                     />
                                 </div>
+                                <p className={styles['input-helper']}>
+                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.stocks)}
+                                </p>
                             </div>
                             <div className={styles['input-column']}>
                                 <label>Target (6 Months)</label>
                                 <div className={styles['target-amount']}>
-                                    ₹{calculateSuggestedPortfolio().stocks.toLocaleString('en-IN')}
+                                    {formatIndianCurrency(portfolio.stocks * 6)}
                                 </div>
                             </div>
                         </div>
@@ -412,7 +682,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                         <div className={styles['input-row']}>
                             <div className={styles['input-column']}>
                                 <div className={styles['input-label']}>
-                                    <span>Current Investment</span>
+                                    <span>Monthly Investment</span>
                                     <span className={styles['currency-symbol']}>₹</span>
                                 </div>
                                 <div className={styles['currency-input']}>
@@ -423,11 +693,14 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
                                         step="1000"
                                     />
                                 </div>
+                                <p className={styles['input-helper']}>
+                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.reits)}
+                                </p>
                             </div>
                             <div className={styles['input-column']}>
                                 <label>Target (6 Months)</label>
                                 <div className={styles['target-amount']}>
-                                    ₹{calculateSuggestedPortfolio().reits.toLocaleString('en-IN')}
+                                    {formatIndianCurrency(portfolio.reits * 6)}
                                 </div>
                             </div>
                         </div>

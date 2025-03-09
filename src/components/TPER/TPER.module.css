@@ -480,169 +480,132 @@
 }
 
 .progress-status {
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    border: 2px solid;
-    background-color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 4px solid;
+    background: #f8fafc;
+    margin-top: 1rem;
 }
 
 .status-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.status-header span {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.status-header strong {
+    font-weight: 600;
 }
 
 .progress-percentage {
-    font-size: 1.5rem;
-    font-weight: bold;
+    font-weight: 600;
+    font-size: 1rem;
 }
 
-.review-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
+.progress-status p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.4;
 }
 
-@media (min-width: 1024px) {
-    .review-grid {
-        grid-template-columns: 3fr 2fr;
-    }
-}
-
-.chart-container {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.summary-container {
+.summary-section {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-}
-
-.summary-section, .allocation-section {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.summary-stats {
-    display: grid;
     gap: 1rem;
-    margin-top: 1rem;
 }
 
-.stat-item {
+.summary-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem;
-    background-color: #f8fafc;
-    border-radius: 0.5rem;
-}
-
-.allocation-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.allocation-item {
-    display: grid;
-    grid-template-columns: 1fr 3fr 1fr;
-    align-items: center;
-    gap: 1rem;
-}
-
-.allocation-bar {
-    height: 0.75rem;
-    background-color: #e2e8f0;
-    border-radius: 9999px;
-    overflow: hidden;
-}
-
-.allocation-fill {
-    height: 100%;
-    transition: width 0.3s ease;
-}
-
-.recommendations {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.recommendations-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.recommendation-item {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 1rem;
     padding: 1rem;
-    border-radius: 0.5rem;
-    background-color: #f8fafc;
+    background: #f8fafc;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
 }
 
-.recommendation-type {
-    font-weight: 600;
-    color: #475569;
+.summary-item:hover {
+    background: #f1f5f9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.recommendation-message {
-    color: #1e293b;
-}
-
-.recommendation-priority {
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
+.summary-item span {
+    color: #64748b;
     font-size: 0.875rem;
+}
+
+.summary-item strong {
+    color: #1f2937;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.monthly-breakdown {
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 0.375rem;
+}
+
+.monthly-breakdown h3 {
+    margin: 0 0 1rem 0;
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 0.25rem;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.breakdown-item:hover {
+    background: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.breakdown-item span:first-child {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.breakdown-item span:last-child {
+    color: #1f2937;
     font-weight: 500;
+    font-size: 0.875rem;
 }
 
-.priority-high {
-    background-color: #fee2e2;
-    color: #ef4444;
-}
-
-.priority-medium {
-    background-color: #fef3c7;
-    color: #f59e0b;
-}
-
-.priority-low {
-    background-color: #dbeafe;
-    color: #3b82f6;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
-    .review-component {
-        padding: 1rem;
-        gap: 1.5rem;
-    }
-
-    .progress-summary {
-        padding: 1.25rem;
-    }
-
-    .summary-stats {
+    .summary-grid {
         grid-template-columns: 1fr;
-        gap: 1rem;
     }
 
-    .recommendation-item {
+    .breakdown-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-item,
+    .breakdown-item {
         padding: 0.75rem;
     }
 }
@@ -1705,4 +1668,196 @@
     font-size: 1.125rem;
     font-weight: 600;
     margin: 0 0 1rem 0;
+}
+
+.container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #1f2937;
+    font-size: 1.5rem;
+}
+
+.summary-container {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summary-container h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #1f2937;
+    font-size: 1.5rem;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .summary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.summary-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 0.375rem;
+}
+
+.summary-item span {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.summary-item strong {
+    color: #1f2937;
+    font-size: 1rem;
+}
+
+.monthly-breakdown {
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 0.375rem;
+}
+
+.monthly-breakdown h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #1f2937;
+    font-size: 1.125rem;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 0.25rem;
+    border: 1px solid #e2e8f0;
+}
+
+.breakdown-item span:first-child {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.breakdown-item span:last-child {
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.monthly-investments {
+    background: #f8fafc;
+    border-radius: 0.375rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.monthly-investments h3 {
+    margin: 0 0 1rem 0;
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.monthly-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e2e8f0;
+}
+
+.monthly-total span {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.monthly-total strong {
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.monthly-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 0.25rem;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.breakdown-item:hover {
+    background: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.breakdown-item span:first-child {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.breakdown-item span:last-child {
+    color: #1f2937;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .monthly-breakdown {
+        grid-template-columns: 1fr;
+    }
+
+    .monthly-total,
+    .breakdown-item {
+        padding: 0.75rem;
+    }
 }

@@ -450,10 +450,6 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
                     Save Plan & Continue to Execute
                 </button>
             </div>
-
-            <div className={styles['navigation']}>
-                {/* Previous/Next buttons */}
-            </div>
         </div>
     );
 };
