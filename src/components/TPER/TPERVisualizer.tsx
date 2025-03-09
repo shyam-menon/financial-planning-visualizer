@@ -81,6 +81,7 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
         highRisk: number;
         monthlySavings: number;
         savingsGrowthRate: number;
+        currentNetWorth: number;
     }) => {
         setPlan({
             targetCorpus,
@@ -92,8 +93,14 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
                 highRisk: newPlan.highRisk
             },
             savingsGrowthRate: newPlan.savingsGrowthRate,
-            currentNetWorth: currentAssets.currentNetWorth
+            currentNetWorth: newPlan.currentNetWorth
         });
+        
+        // Update currentAssets with the new net worth
+        setCurrentAssets(prev => ({
+            ...prev,
+            currentNetWorth: newPlan.currentNetWorth
+        }));
     };
 
     const handleAssetsUpdated = (updatedAssets: typeof currentAssets, status?: {

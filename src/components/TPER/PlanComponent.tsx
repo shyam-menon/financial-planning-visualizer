@@ -8,6 +8,7 @@ export interface AssetAllocation {
     highRisk: number;
     monthlySavings: number;
     savingsGrowthRate: number;
+    currentNetWorth: number;
 }
 
 interface PlanComponentProps {
@@ -49,7 +50,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
         moderateRisk: 40,
         highRisk: 30,
         monthlySavings: 0,
-        savingsGrowthRate: 7
+        savingsGrowthRate: 7,
+        currentNetWorth: currentNetWorth
     });
     const [showRecommendation, setShowRecommendation] = useState<boolean>(false);
 
@@ -80,7 +82,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
         setAllocation(prev => ({
             ...prev,
             monthlySavings: requiredMonthly,
-            savingsGrowthRate: expectedReturn
+            savingsGrowthRate: expectedReturn,
+            currentNetWorth: currentNetWorth
         }));
     }, [targetCorpus, currentNetWorth, expectedReturn, yearsToRetirement]);
 
@@ -100,7 +103,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
         setExpectedReturn(newExpectedReturn);
         setAllocation(prev => ({
             ...prev,
-            savingsGrowthRate: newExpectedReturn
+            savingsGrowthRate: newExpectedReturn,
+            currentNetWorth: currentNetWorth
         }));
     }, [allocation.lowRisk, allocation.moderateRisk, allocation.highRisk]);
 
@@ -116,7 +120,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
             moderateRisk: hybridPercent,
             highRisk: equityPercent,
             monthlySavings: monthlyInvestment,
-            savingsGrowthRate: expectedReturn
+            savingsGrowthRate: expectedReturn,
+            currentNetWorth: currentNetWorth
         };
     };
 
@@ -134,7 +139,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
             moderateRisk: allocation.moderateRisk,
             highRisk: allocation.highRisk,
             monthlySavings: roundedInvestment,
-            savingsGrowthRate: expectedReturn
+            savingsGrowthRate: expectedReturn,
+            currentNetWorth: currentNetWorth
         });
     };
 
@@ -223,7 +229,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
                                     setAllocation(prev => ({
                                         ...prev,
                                         monthlySavings: value,
-                                        savingsGrowthRate: expectedReturn
+                                        savingsGrowthRate: expectedReturn,
+                                        currentNetWorth: currentNetWorth
                                     }));
                                 }}
                                 min="0"
@@ -311,7 +318,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
                                     moderateRisk: Math.max(0, prev.moderateRisk - diff/2),
                                     highRisk: Math.max(0, prev.highRisk - diff/2),
                                     monthlySavings: prev.monthlySavings,
-                                    savingsGrowthRate: prev.savingsGrowthRate
+                                    savingsGrowthRate: prev.savingsGrowthRate,
+                                    currentNetWorth: currentNetWorth
                                 }));
                             }}
                             min="0"
@@ -336,7 +344,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
                                     moderateRisk: newValue,
                                     highRisk: Math.max(0, prev.highRisk - diff/2),
                                     monthlySavings: prev.monthlySavings,
-                                    savingsGrowthRate: prev.savingsGrowthRate
+                                    savingsGrowthRate: prev.savingsGrowthRate,
+                                    currentNetWorth: currentNetWorth
                                 }));
                             }}
                             min="0"
@@ -361,7 +370,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
                                     moderateRisk: Math.max(0, prev.moderateRisk - diff/2),
                                     highRisk: newValue,
                                     monthlySavings: prev.monthlySavings,
-                                    savingsGrowthRate: prev.savingsGrowthRate
+                                    savingsGrowthRate: prev.savingsGrowthRate,
+                                    currentNetWorth: currentNetWorth
                                 }));
                             }}
                             min="0"
@@ -386,7 +396,8 @@ export const PlanComponent: React.FC<PlanComponentProps> = ({ targetCorpus, curr
                                 setExpectedReturn(value);
                                 setAllocation(prev => ({
                                     ...prev,
-                                    savingsGrowthRate: value
+                                    savingsGrowthRate: value,
+                                    currentNetWorth: currentNetWorth
                                 }));
                             }}
                             min="0"
