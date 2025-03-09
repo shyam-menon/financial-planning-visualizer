@@ -24,9 +24,9 @@ ChartJS.register(
 );
 
 const FourPercentRule: React.FC = () => {
-  const [startingBalance, setStartingBalance] = useState<number>(10000000); // 1 Crore
+  const [startingBalance, setStartingBalance] = useState<number>(120000000); // 12 Crore
   const [withdrawalRate, setWithdrawalRate] = useState<number>(4);
-  const [returnRate, setReturnRate] = useState<number>(7);
+  const [returnRate, setReturnRate] = useState<number>(8); // Updated to 8%
   const [inflationRate, setInflationRate] = useState<number>(6);
   const [years, setYears] = useState<number>(30);
   const [animatedWithdrawal, setAnimatedWithdrawal] = useState<number>(0);

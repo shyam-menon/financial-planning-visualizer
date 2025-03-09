@@ -17,10 +17,10 @@ interface YearlyData {
 const PowerOfSavings: React.FC = () => {
     const [currentAge, setCurrentAge] = useState<number>(25);
     const [retirementAge, setRetirementAge] = useState<number>(60);
-    const [initialSavings, setInitialSavings] = useState<number>(10000000); // 1 Crore
-    const [annualSavings, setAnnualSavings] = useState<number>(1200000); // 12 Lakhs
-    const [returnRate, setReturnRate] = useState<number>(7); // Conservative estimate for Indian markets
-    const [savingsGrowthRate, setSavingsGrowthRate] = useState<number>(6); // Based on Indian inflation
+    const [initialSavings, setInitialSavings] = useState<number>(500000); // 5 Lakhs
+    const [annualSavings, setAnnualSavings] = useState<number>(300000); // 3 Lakhs
+    const [returnRate, setReturnRate] = useState<number>(10); // Expected return rate
+    const [savingsGrowthRate, setSavingsGrowthRate] = useState<number>(6.5); // Annual savings growth rate
     const [yearlyData, setYearlyData] = useState<YearlyData[]>([]);
 
     const calculateProjection = useCallback(() => {

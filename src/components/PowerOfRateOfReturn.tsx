@@ -24,8 +24,8 @@ ChartJS.register(
 );
 
 export const PowerOfRateOfReturn: React.FC = () => {
-    const [startingCapital, setStartingCapital] = useState<number>(1000000);
-    const [currentAge, setCurrentAge] = useState<number>(30);
+    const [startingCapital, setStartingCapital] = useState<number>(800000); // 8 lakhs
+    const [currentAge, setCurrentAge] = useState<number>(25);
     const [targetAge, setTargetAge] = useState<number>(60);
     const [returnRate, setReturnRate] = useState<number>(12);
 
