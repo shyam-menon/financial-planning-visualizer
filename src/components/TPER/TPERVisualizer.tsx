@@ -42,6 +42,15 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
             total: 0
         }
     });
+    const [executionStatus, setExecutionStatus] = useState<{
+        isOnTrack: boolean;
+        message: string;
+        progress: number;
+    }>({
+        isOnTrack: true,
+        message: '',
+        progress: 0
+    });
 
     const handleTargetCalculated = (target: number, age: number, retirement: number) => {
         setTargetCorpus(target);
@@ -87,8 +96,15 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
         });
     };
 
-    const handleAssetsUpdated = (updatedAssets: typeof currentAssets) => {
+    const handleAssetsUpdated = (updatedAssets: typeof currentAssets, status?: {
+        isOnTrack: boolean;
+        message: string;
+        progress: number;
+    }) => {
         setCurrentAssets(updatedAssets);
+        if (status) {
+            setExecutionStatus(status);
+        }
     };
 
     const moveToStep = (stepId: typeof activeStep) => {
@@ -119,7 +135,10 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
                 return (
                     <ExecuteComponent 
                         plan={plan}
-                        onAssetsUpdated={handleAssetsUpdated}
+                        onAssetsUpdated={(assets, status) => {
+                            handleAssetsUpdated(assets, status);
+                            // Don't automatically move to review to allow user to adjust investments
+                        }}
                     />
                 );
             case 'review':
@@ -127,6 +146,9 @@ export const TPERVisualizer: React.FC<TPERVisualizerProps> = () => {
                     <ReviewComponent 
                         plan={plan}
                         currentAssets={currentAssets}
+                        executionStatus={executionStatus}
+                        currentAge={currentAge}
+                        retirementAge={retirementAge}
                     />
                 );
             default:

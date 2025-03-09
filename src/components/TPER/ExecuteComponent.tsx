@@ -13,7 +13,11 @@ interface ExecuteComponentProps {
         };
         currentNetWorth: number;
     };
-    onAssetsUpdated: (assets: Portfolio) => void;
+    onAssetsUpdated: (assets: Portfolio, status?: {
+        isOnTrack: boolean;
+        message: string;
+        progress: number;
+    }) => void;
 }
 
 interface Portfolio {
@@ -419,6 +423,33 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
 
         updatePortfolioWithMonthly();
     }, [portfolio.fixedDeposits, portfolio.bonds, portfolio.mutualFunds, portfolio.stocks, portfolio.gold, portfolio.reits, plan.monthlySavings]);
+
+    useEffect(() => {
+        // Update execution status whenever portfolio changes
+        const monthlyTotal = portfolio.monthlyInvestments.total;
+        const targetMonthly = plan.monthlySavings;
+        const progress = Math.min((monthlyTotal / targetMonthly) * 100, 100);
+
+        // Update execution status with Indian context-aware messages
+        let message = '';
+        if (progress >= 90) {
+            message = 'Excellent! Your monthly investments are well-aligned with the target.';
+        } else if (progress >= 75) {
+            message = 'Good progress! Your monthly investment plan is on track.';
+        } else if (progress >= 50) {
+            message = 'You are following the plan. Keep maintaining your monthly investments.';
+        } else if (progress >= 25) {
+            message = 'Getting started with your monthly investment plan.';
+        } else {
+            message = 'Begin your monthly investments as per the suggested allocation.';
+        }
+
+        onAssetsUpdated(portfolio, {
+            isOnTrack: progress >= 75,
+            message,
+            progress
+        });
+    }, [portfolio, plan.monthlySavings, onAssetsUpdated]);
 
     return (
         <div>

@@ -57,11 +57,21 @@ interface ReviewComponentProps {
         savingsGrowthRate: number;
     };
     currentAssets: PortfolioAssets;
+    executionStatus?: {
+        isOnTrack: boolean;
+        message: string;
+        progress: number;
+    };
+    currentAge: number;
+    retirementAge: number;
 }
 
 export const ReviewComponent: React.FC<ReviewComponentProps> = ({
     plan,
-    currentAssets
+    currentAssets,
+    executionStatus,
+    currentAge,
+    retirementAge
 }) => {
     const [historicalData, setHistoricalData] = useState<{
         date: Date;
@@ -157,40 +167,90 @@ export const ReviewComponent: React.FC<ReviewComponentProps> = ({
         setHistoricalData(generateHistoricalData());
     }, [currentAssets.currentNetWorth, currentAssets.monthlyInvestments.total, plan.savingsGrowthRate]);
 
+    const calculateExpectedNetWorth = (age: number): number => {
+        const baseNetWorth = 10000000; // ₹1 crore at age 36 (from memory)
+        
+        if (age <= 36) {
+            // Scale down by 10% per year for younger ages
+            const scaleFactor = Math.pow(0.9, 36 - age);
+            return baseNetWorth * scaleFactor;
+        } else {
+            // Scale up by 8% per year for older ages
+            const scaleFactor = Math.pow(1.08, age - 36);
+            return baseNetWorth * scaleFactor;
+        }
+    };
+
     const calculateProgress = () => {
         const currentValue = currentAssets.currentNetWorth;
         const targetValue = plan.targetCorpus;
         const progressPercentage = (currentValue / targetValue) * 100;
+        const monthlyInvestmentProgress = executionStatus?.progress || 0;
+
+        // Calculate expected net worth for current age
+        const expectedNetWorth = calculateExpectedNetWorth(currentAge);
+        const yearsToRetirement = retirementAge - currentAge;
+        
+        // Calculate if on track based on current vs expected net worth
+        const netWorthProgress = (currentValue / expectedNetWorth) * 100;
+        const isOnTrack = netWorthProgress >= 90;
 
         let status: string;
         let color: string;
         let message: string;
+        let ageBasedMessage: string;
 
         if (progressPercentage >= 90) {
             status = 'Excellent';
             color = '#22c55e';
-            message = 'You are very close to achieving your target corpus!';
         } else if (progressPercentage >= 75) {
             status = 'Good';
             color = '#3b82f6';
-            message = 'You are making great progress towards your target.';
         } else if (progressPercentage >= 50) {
             status = 'Moderate';
             color = '#f59e0b';
-            message = 'You are halfway to your target. Keep up the consistent investments!';
         } else {
             status = 'Getting Started';
             color = '#64748b';
-            message = 'Continue with your monthly investments to build your corpus.';
+        }
+
+        // Age-based message considering Indian context
+        if (netWorthProgress >= 90) {
+            ageBasedMessage = `Your current net worth of ${formatIndianCurrency(currentValue)} is aligned with expectations for your age.`;
+        } else if (netWorthProgress >= 75) {
+            ageBasedMessage = `Your net worth is slightly below the expected ${formatIndianCurrency(expectedNetWorth)} for age ${currentAge}.`;
+        } else {
+            const shortfall = expectedNetWorth - currentValue;
+            ageBasedMessage = `Alert: Your net worth is ₹${formatIndianCurrency(shortfall)} below the expected amount for your age. Consider increasing monthly investments.`;
+        }
+
+        // Combine messages based on both progress and age-based tracking
+        message = executionStatus?.isOnTrack 
+            ? `${ageBasedMessage} Your monthly investment discipline is strong at ₹${formatIndianCurrency(currentAssets.monthlyInvestments.total)}.`
+            : `${ageBasedMessage} To catch up, try to increase monthly investments from ₹${formatIndianCurrency(currentAssets.monthlyInvestments.total)} towards the target of ₹${formatIndianCurrency(plan.monthlySavings)}.`;
+
+        // If young with low progress, add encouraging message
+        if (currentAge < 30 && progressPercentage < 50) {
+            message += " Starting early gives you a significant advantage in building wealth.";
+        }
+        // If approaching retirement with low progress, add urgency
+        else if (currentAge > 45 && progressPercentage < 75) {
+            message += " Consider consulting a financial advisor to optimize your retirement strategy.";
         }
 
         return {
             percentage: progressPercentage,
+            monthlyProgress: monthlyInvestmentProgress,
+            netWorthProgress,
             status,
             color,
-            message
+            message,
+            expectedNetWorth,
+            yearsToRetirement
         };
     };
+
+    const progress = calculateProgress();
 
     const getTotalAssets = (): number => {
         const assets = {
@@ -223,10 +283,10 @@ export const ReviewComponent: React.FC<ReviewComponentProps> = ({
     const totalAssets = getTotalAssets();
     const currentAllocation = calculateAllocation();
 
-    const progress = calculateProgress();
-
     return (
-        <div className={styles.container}>
+        <div className={styles.reviewContainer}>
+            <h2>Portfolio Review</h2>
+            
             <div className={styles['chart-container']}>
                 <h2>Portfolio Performance</h2>
                 <Line data={generateChartData()} options={chartOptions} />
@@ -287,6 +347,63 @@ export const ReviewComponent: React.FC<ReviewComponentProps> = ({
                                 <span>{formatIndianCurrency(currentAssets.monthlyInvestments.reits)}</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.progressIndicator}>
+                <div className={styles.progressStats}>
+                    <div>
+                        <h3>Overall Progress</h3>
+                        <div className={styles.progressBar}>
+                            <div 
+                                className={styles.progressFill}
+                                style={{ 
+                                    width: `${progress.percentage}%`,
+                                    backgroundColor: progress.color 
+                                }}
+                            />
+                        </div>
+                        <p>{progress.percentage.toFixed(1)}% of Target Corpus</p>
+                    </div>
+                    
+                    <div>
+                        <h3>Age-Based Progress</h3>
+                        <div className={styles.progressBar}>
+                            <div 
+                                className={styles.progressFill}
+                                style={{ 
+                                    width: `${progress.netWorthProgress}%`,
+                                    backgroundColor: progress.netWorthProgress >= 90 ? '#22c55e' : '#f59e0b'
+                                }}
+                            />
+                        </div>
+                        <p>{progress.netWorthProgress.toFixed(1)}% of Expected Net Worth for Age {currentAge}</p>
+                    </div>
+                    
+                    {executionStatus && (
+                        <div>
+                            <h3>Monthly Investment Progress</h3>
+                            <div className={styles.progressBar}>
+                                <div 
+                                    className={styles.progressFill}
+                                    style={{ 
+                                        width: `${progress.monthlyProgress}%`,
+                                        backgroundColor: executionStatus.isOnTrack ? '#22c55e' : '#f59e0b'
+                                    }}
+                                />
+                            </div>
+                            <p>{progress.monthlyProgress.toFixed(1)}% of Target Monthly Investment</p>
+                        </div>
+                    )}
+                </div>
+                
+                <div className={styles.statusCard} style={{ borderColor: progress.color }}>
+                    <h3>Status: {progress.status}</h3>
+                    <p>{progress.message}</p>
+                    <div className={styles.timelineInfo}>
+                        <p>Years to Retirement: {progress.yearsToRetirement}</p>
+                        <p>Expected Net Worth at Current Age: ₹{formatIndianCurrency(progress.expectedNetWorth)}</p>
                     </div>
                 </div>
             </div>
