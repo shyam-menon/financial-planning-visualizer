@@ -78,31 +78,32 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         return `₹${amount}`;
     };
 
-    const handlePortfolioChange = (field: keyof Portfolio, value: string) => {
+    const handlePortfolioChange = (field: keyof Portfolio['monthlyInvestments'], value: string) => {
         const numericValue = value === '' ? 0 : parseFloat(value);
-        const updatedPortfolio = {
-            ...portfolio,
-            [field]: numericValue
-        };
+        // Round to nearest ₹1,000 as per Indian investment patterns
+        const roundedValue = Math.round(numericValue / 1000) * 1000;
         
-        // Update monthly investments
+        // Update the specific monthly investment
+        const updatedMonthlyInvestments = {
+            ...portfolio.monthlyInvestments,
+            [field]: roundedValue
+        };
+
+        // Recalculate total
         const monthlyTotal = Object.values({
-            fixedDeposits: updatedPortfolio.fixedDeposits,
-            bonds: updatedPortfolio.bonds,
-            mutualFunds: updatedPortfolio.mutualFunds,
-            stocks: updatedPortfolio.stocks,
-            gold: updatedPortfolio.gold,
-            reits: updatedPortfolio.reits
+            fixedDeposits: updatedMonthlyInvestments.fixedDeposits,
+            bonds: updatedMonthlyInvestments.bonds,
+            mutualFunds: updatedMonthlyInvestments.mutualFunds,
+            stocks: updatedMonthlyInvestments.stocks,
+            gold: updatedMonthlyInvestments.gold,
+            reits: updatedMonthlyInvestments.reits
         }).reduce((sum, value) => sum + value, 0);
 
-        updatedPortfolio.monthlyInvestments = {
-            fixedDeposits: updatedPortfolio.fixedDeposits,
-            bonds: updatedPortfolio.bonds,
-            mutualFunds: updatedPortfolio.mutualFunds,
-            stocks: updatedPortfolio.stocks,
-            gold: updatedPortfolio.gold,
-            reits: updatedPortfolio.reits,
-            total: monthlyTotal
+        updatedMonthlyInvestments.total = monthlyTotal;
+
+        const updatedPortfolio = {
+            ...portfolio,
+            monthlyInvestments: updatedMonthlyInvestments
         };
 
         setPortfolio(updatedPortfolio);
@@ -118,7 +119,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         if (progress >= 90) {
             message = 'Excellent! Your monthly investments are well-aligned with the target.';
         } else if (progress >= 75) {
-            message = 'Good progress! Your monthly investment plan is on track.';
+            message = 'Good progress! Keep maintaining your monthly investments.';
         } else if (progress >= 50) {
             message = 'You are following the plan. Keep maintaining your monthly investments.';
         } else if (progress >= 25) {
@@ -132,6 +133,20 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
             message,
             progress
         });
+    };
+
+    const handleNetWorthChange = (value: string) => {
+        const numericValue = value === '' ? 0 : parseFloat(value);
+        // Ensure step size of 1 lakh (100,000) as per Indian context
+        const roundedValue = Math.round(numericValue / 100000) * 100000;
+        
+        const updatedPortfolio = {
+            ...portfolio,
+            currentNetWorth: roundedValue
+        };
+        
+        setPortfolio(updatedPortfolio);
+        onAssetsUpdated(updatedPortfolio);
     };
 
     const updateMonthlyInvestments = (newPortfolio: Portfolio) => {
@@ -266,13 +281,7 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
     const resetPortfolio = () => {
         const suggested = calculateSuggestedPortfolio();
         const defaultPortfolio = {
-            fixedDeposits: suggested.monthlyInvestments.fixedDeposits,
-            bonds: suggested.monthlyInvestments.bonds,
-            mutualFunds: suggested.monthlyInvestments.mutualFunds,
-            stocks: suggested.monthlyInvestments.stocks,
-            gold: suggested.monthlyInvestments.gold,
-            reits: suggested.monthlyInvestments.reits,
-            currentNetWorth: plan.currentNetWorth,
+            ...portfolio,
             monthlyInvestments: suggested.monthlyInvestments
         };
         setPortfolio(defaultPortfolio);
@@ -285,43 +294,22 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         });
     };
 
-    useEffect(() => {
-        const suggested = calculateSuggestedPortfolio();
-        const defaultPortfolio = {
-            fixedDeposits: suggested.monthlyInvestments.fixedDeposits,
-            bonds: suggested.monthlyInvestments.bonds,
-            mutualFunds: suggested.monthlyInvestments.mutualFunds,
-            stocks: suggested.monthlyInvestments.stocks,
-            gold: suggested.monthlyInvestments.gold,
-            reits: suggested.monthlyInvestments.reits,
-            currentNetWorth: plan.currentNetWorth,
-            monthlyInvestments: suggested.monthlyInvestments
-        };
-        setPortfolio(defaultPortfolio);
-        onAssetsUpdated(defaultPortfolio);
-        
-        setExecutionStatus({
-            isOnTrack: true,
-            message: 'Monthly investment plan initialized based on your target allocation.',
-            progress: 100
-        });
-    }, [plan]);
-
     const calculateCurrentAllocation = () => {
-        // Calculate total invested amount excluding current net worth
-        const totalInvested = portfolio.fixedDeposits + 
-                            portfolio.bonds + 
-                            portfolio.mutualFunds + 
-                            portfolio.stocks + 
-                            portfolio.gold + 
-                            portfolio.reits;
+        // Calculate total invested amount based on monthly investments
+        const totalInvested = Object.values(portfolio.monthlyInvestments).reduce((sum, value) => {
+            // Skip the 'total' field in the sum
+            if (typeof value === 'number' && value !== portfolio.monthlyInvestments.total) {
+                return sum + value;
+            }
+            return sum;
+        }, 0);
 
         if (totalInvested === 0) return { lowRisk: 0, moderateRisk: 0, highRisk: 0 };
 
-        // Calculate risk-based allocation percentages
-        const lowRisk = ((portfolio.fixedDeposits + portfolio.bonds) / totalInvested) * 100;
-        const moderateRisk = ((portfolio.mutualFunds + portfolio.gold) / totalInvested) * 100;
-        const highRisk = ((portfolio.stocks + portfolio.reits) / totalInvested) * 100;
+        // Calculate risk-based allocation percentages based on monthly investments
+        const lowRisk = ((portfolio.monthlyInvestments.fixedDeposits + portfolio.monthlyInvestments.bonds) / totalInvested) * 100;
+        const moderateRisk = ((portfolio.monthlyInvestments.mutualFunds + portfolio.monthlyInvestments.gold) / totalInvested) * 100;
+        const highRisk = ((portfolio.monthlyInvestments.stocks + portfolio.monthlyInvestments.reits) / totalInvested) * 100;
 
         return { lowRisk, moderateRisk, highRisk };
     };
@@ -361,6 +349,93 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         return needs;
     };
 
+    const renderMonthlyInvestmentInput = (
+        field: keyof Portfolio['monthlyInvestments'],
+        title: string,
+        description: string,
+        riskCategory: string
+    ) => (
+        <div className={styles['asset-type']}>
+            <h5>{title}</h5>
+            <p className={styles['asset-description']}>{description}</p>
+            <div className={styles['input-row']}>
+                <div className={styles['input-column']}>
+                    <div className={styles['input-label']}>
+                        <span>Monthly Investment</span>
+                        <span className={styles['currency-symbol']}>₹</span>
+                    </div>
+                    <div className={styles['currency-input']}>
+                        <input
+                            type="number"
+                            value={portfolio.monthlyInvestments[field] || ''}
+                            onChange={(e) => handlePortfolioChange(field, e.target.value)}
+                            step="1000"
+                            min="0"
+                            className={
+                                portfolio.monthlyInvestments[field] >= calculateSuggestedPortfolio().monthlyInvestments[field]
+                                    ? styles['input-success']
+                                    : styles['input-warning']
+                            }
+                        />
+                    </div>
+                    <p className={styles['input-helper']}>
+                        Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments[field])}
+                    </p>
+                </div>
+                <div className={styles['input-column']}>
+                    <label>Target (6 Months)</label>
+                    <div className={styles['target-amount']}>
+                        {formatIndianCurrency(portfolio.monthlyInvestments[field] * 6)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderNetWorthInput = () => (
+        <div className={styles['input-group']}>
+            <h4>Current Net Worth</h4>
+            <div className={styles['asset-category']}>
+                <div className={styles['asset-type']}>
+                    <h5>Total Net Worth</h5>
+                    <p className={styles['asset-description']}>
+                        Your total current wealth including all assets and investments. This forms the foundation of your retirement planning.
+                        For your age, a typical net worth would be around ₹1 crore, but this can vary based on your circumstances.
+                    </p>
+                    <div className={styles['input-row']}>
+                        <div className={styles['input-column']}>
+                            <div className={styles['input-label']}>
+                                <span>Current Value</span>
+                                <span className={styles['currency-symbol']}>₹</span>
+                            </div>
+                            <div className={styles['currency-input']}>
+                                <input
+                                    type="number"
+                                    value={portfolio.currentNetWorth || ''}
+                                    onChange={(e) => handleNetWorthChange(e.target.value)}
+                                    step="100000"
+                                    min="0"
+                                />
+                            </div>
+                            <p className={styles['input-helper']}>
+                                Current Net Worth: {formatIndianCurrency(portfolio.currentNetWorth)}
+                            </p>
+                        </div>
+                        <div className={styles['input-column']}>
+                            <label>Target (6 Months)</label>
+                            <div className={styles['target-display']}>
+                                {formatIndianCurrency(portfolio.currentNetWorth + (plan.monthlySavings * 6))}
+                            </div>
+                            <p className={styles['input-helper']}>
+                                Expected growth with monthly savings
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     useEffect(() => {
         onAssetsUpdated(portfolio);
     }, [portfolio, onAssetsUpdated]);
@@ -377,52 +452,36 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
     useEffect(() => {
         // Update monthly investments whenever portfolio values change
         const updatePortfolioWithMonthly = () => {
-            const totalAssets = Object.values({
-                fixedDeposits: portfolio.fixedDeposits,
-                bonds: portfolio.bonds,
-                mutualFunds: portfolio.mutualFunds,
-                stocks: portfolio.stocks,
-                gold: portfolio.gold,
-                reits: portfolio.reits
-            }).reduce((sum, value) => sum + value, 0);
+            const totalMonthlyInvestments = portfolio.monthlyInvestments.total;
 
-            // Calculate execution progress
-            const targetAmount = plan.monthlySavings * 6;
-            const progress = Math.min((totalAssets / targetAmount) * 100, 100);
+            // Calculate execution progress based on 6-month target in Indian currency context
+            const targetAmount = plan.monthlySavings * 6; // 6 months target
+            const progress = Math.min((totalMonthlyInvestments / plan.monthlySavings) * 100, 100);
 
             let message = '';
             let isOnTrack = true;
 
             if (progress >= 90) {
-                message = 'Excellent progress! You are very close to your 6-month target.';
+                message = 'Excellent progress! Your monthly investments are well-aligned with the target.';
             } else if (progress >= 75) {
                 message = 'Good progress! Keep maintaining your monthly investments.';
             } else if (progress >= 50) {
                 message = 'You are on track. Continue with your investment plan.';
             } else if (progress >= 25) {
-                message = 'Getting started well. Stay consistent with your investments.';
-                isOnTrack = true;
+                message = 'Getting started with your monthly investment plan.';
             } else {
-                message = 'You are in the early stages. Focus on regular monthly investments.';
-                isOnTrack = true;
+                message = 'Begin your monthly investments as per the suggested allocation.';
             }
 
             setExecutionStatus({
-                isOnTrack,
+                isOnTrack: progress >= 75,
                 message,
                 progress
             });
-
-            // Update monthly investments based on current portfolio allocation
-            const updatedPortfolio = updateMonthlyInvestments(portfolio);
-            if (JSON.stringify(updatedPortfolio) !== JSON.stringify(portfolio)) {
-                setPortfolio(updatedPortfolio);
-                onAssetsUpdated(updatedPortfolio);
-            }
         };
 
         updatePortfolioWithMonthly();
-    }, [portfolio.fixedDeposits, portfolio.bonds, portfolio.mutualFunds, portfolio.stocks, portfolio.gold, portfolio.reits, plan.monthlySavings]);
+    }, [portfolio.monthlyInvestments, plan.monthlySavings]);
 
     useEffect(() => {
         // Update execution status whenever portfolio changes
@@ -451,59 +510,44 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
         });
     }, [portfolio, plan.monthlySavings, onAssetsUpdated]);
 
+    useEffect(() => {
+        const suggested = calculateSuggestedPortfolio();
+        // Initialize portfolio with suggested monthly investments and current net worth
+        const defaultPortfolio = {
+            fixedDeposits: 0,
+            bonds: 0,
+            mutualFunds: 0,
+            stocks: 0,
+            gold: 0,
+            reits: 0,
+            currentNetWorth: plan.currentNetWorth,
+            monthlyInvestments: suggested.monthlyInvestments
+        };
+        setPortfolio(defaultPortfolio);
+        onAssetsUpdated(defaultPortfolio);
+        
+        setExecutionStatus({
+            isOnTrack: true,
+            message: 'Monthly investment plan initialized based on your target allocation.',
+            progress: 100
+        });
+    }, [plan]);
+
+    useEffect(() => {
+        if (portfolio.currentNetWorth !== plan.currentNetWorth) {
+            // Update net worth with proper rounding to nearest lakh
+            const roundedNetWorth = Math.round(plan.currentNetWorth / 100000) * 100000;
+            setPortfolio(prev => ({
+                ...prev,
+                currentNetWorth: roundedNetWorth
+            }));
+        }
+    }, [plan.currentNetWorth]);
+
     return (
-        <div>
-            <div className={styles['section-header']}>
-                <h2>Execute Your Plan</h2>
-                <div>
-                    <button className={styles['reset-button']} onClick={resetPortfolio}>
-                        Reset
-                    </button>
-                </div>
-            </div>
-
-            <div className={styles['input-group']}>
-                <h4>Current Net Worth</h4>
-                <div className={styles['asset-category']}>
-                    <div className={styles['asset-type']}>
-                        <h5>Total Net Worth</h5>
-                        <p className={styles['asset-description']}>
-                            Your total current wealth including all assets and investments. This forms the foundation of your retirement planning.
-                            For your age, a typical net worth would be around ₹1 crore, but this can vary based on your circumstances.
-                        </p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Current Value</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.currentNetWorth || ''}
-                                        onChange={(e) => handlePortfolioChange('currentNetWorth', e.target.value)}
-                                        step="100000"
-                                        min="0"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Current Net Worth: {formatIndianCurrency(portfolio.currentNetWorth)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-display']}>
-                                    {formatIndianCurrency(portfolio.currentNetWorth + (plan.monthlySavings * 6))}
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Expected growth with monthly savings
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        <div className={styles.execute}>
+            {renderNetWorthInput()}
+            
             <div className={styles['execution-status']}>
                 <h3>Execution Status</h3>
                 <p>{executionStatus.message}</p>
@@ -547,195 +591,54 @@ export const ExecuteComponent: React.FC<ExecuteComponentProps> = ({ plan, onAsse
             <div className={styles['input-group']}>
                 <h4>Low Risk Assets</h4>
                 <div className={styles['asset-category']}>
-                    <div className={styles['asset-type']}>
-                        <h5>Fixed Deposits (FDs)</h5>
-                        <p className={styles['asset-description']}>Traditional bank deposits with guaranteed returns</p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Monthly Investment</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.fixedDeposits || ''}
-                                        onChange={(e) => handlePortfolioChange('fixedDeposits', e.target.value)}
-                                        step="1000"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.fixedDeposits)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-amount']}>
-                                    {formatIndianCurrency(portfolio.fixedDeposits * 6)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles['asset-type']}>
-                        <h5>Bonds</h5>
-                        <p className={styles['asset-description']}>Government and corporate debt securities</p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Monthly Investment</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.bonds || ''}
-                                        onChange={(e) => handlePortfolioChange('bonds', e.target.value)}
-                                        step="1000"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.bonds)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-amount']}>
-                                    {formatIndianCurrency(portfolio.bonds * 6)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {renderMonthlyInvestmentInput(
+                        'fixedDeposits',
+                        'Fixed Deposits (FDs)',
+                        'Traditional bank deposits with guaranteed returns',
+                        'low'
+                    )}
+                    {renderMonthlyInvestmentInput(
+                        'bonds',
+                        'Bonds',
+                        'Government and corporate debt securities',
+                        'low'
+                    )}
                 </div>
             </div>
 
             <div className={styles['input-group']}>
                 <h4>Moderate Risk Assets</h4>
                 <div className={styles['asset-category']}>
-                    <div className={styles['asset-type']}>
-                        <h5>Mutual Funds</h5>
-                        <p className={styles['asset-description']}>Diversified investment portfolios managed by professionals</p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Monthly Investment</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.mutualFunds || ''}
-                                        onChange={(e) => handlePortfolioChange('mutualFunds', e.target.value)}
-                                        step="1000"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.mutualFunds)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-amount']}>
-                                    {formatIndianCurrency(portfolio.mutualFunds * 6)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles['asset-type']}>
-                        <h5>Gold</h5>
-                        <p className={styles['asset-description']}>Physical gold or gold-based investment instruments</p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Monthly Investment</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.gold || ''}
-                                        onChange={(e) => handlePortfolioChange('gold', e.target.value)}
-                                        step="1000"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.gold)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-amount']}>
-                                    {formatIndianCurrency(portfolio.gold * 6)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {renderMonthlyInvestmentInput(
+                        'mutualFunds',
+                        'Mutual Funds',
+                        'Diversified investment portfolios managed by professionals',
+                        'moderate'
+                    )}
+                    {renderMonthlyInvestmentInput(
+                        'gold',
+                        'Gold',
+                        'Physical gold and gold-based investments',
+                        'moderate'
+                    )}
                 </div>
             </div>
 
             <div className={styles['input-group']}>
                 <h4>High Risk Assets</h4>
                 <div className={styles['asset-category']}>
-                    <div className={styles['asset-type']}>
-                        <h5>Stocks</h5>
-                        <p className={styles['asset-description']}>Equity shares of publicly traded companies</p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Monthly Investment</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.stocks || ''}
-                                        onChange={(e) => handlePortfolioChange('stocks', e.target.value)}
-                                        step="1000"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.stocks)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-amount']}>
-                                    {formatIndianCurrency(portfolio.stocks * 6)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles['asset-type']}>
-                        <h5>REITs</h5>
-                        <p className={styles['asset-description']}>Real estate investment trusts</p>
-                        <div className={styles['input-row']}>
-                            <div className={styles['input-column']}>
-                                <div className={styles['input-label']}>
-                                    <span>Monthly Investment</span>
-                                    <span className={styles['currency-symbol']}>₹</span>
-                                </div>
-                                <div className={styles['currency-input']}>
-                                    <input
-                                        type="number"
-                                        value={portfolio.reits || ''}
-                                        onChange={(e) => handlePortfolioChange('reits', e.target.value)}
-                                        step="1000"
-                                    />
-                                </div>
-                                <p className={styles['input-helper']}>
-                                    Suggested: {formatIndianCurrency(calculateSuggestedPortfolio().monthlyInvestments.reits)}
-                                </p>
-                            </div>
-                            <div className={styles['input-column']}>
-                                <label>Target (6 Months)</label>
-                                <div className={styles['target-amount']}>
-                                    {formatIndianCurrency(portfolio.reits * 6)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {renderMonthlyInvestmentInput(
+                        'stocks',
+                        'Stocks',
+                        'Direct equity investments in companies',
+                        'high'
+                    )}
+                    {renderMonthlyInvestmentInput(
+                        'reits',
+                        'REITs',
+                        'Real estate investment trusts',
+                        'high'
+                    )}
                 </div>
             </div>
 
