@@ -6,25 +6,25 @@ import FourPercentRule from './components/FourPercentRule';
 import PowerOfSavings from './components/PowerOfSavings';
 import TPERVisualizer from './components/TPER/TPERVisualizer';
 
-type VisualizationType = 'rule-of-72' | 'power-of-rate-of-return' | '4-percent-rule' | 'power-of-savings' | 'tper';
+type VisualizationType = 'tper' | 'rule-of-72' | 'power-of-rate-of-return' | 'power-of-savings' | '4-percent-rule';
 
 const App: React.FC = () => {
-    const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('rule-of-72');
+    const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>('tper');
 
     const renderVisualization = () => {
         switch (selectedVisualization) {
+            case 'tper':
+                return <TPERVisualizer />;
             case 'rule-of-72':
                 return <RuleOf72 />;
             case 'power-of-rate-of-return':
                 return <PowerOfRateOfReturn />;
-            case '4-percent-rule':
-                return <FourPercentRule />;
             case 'power-of-savings':
                 return <PowerOfSavings />;
-            case 'tper':
-                return <TPERVisualizer />;
+            case '4-percent-rule':
+                return <FourPercentRule />;
             default:
-                return <RuleOf72 />;
+                return <TPERVisualizer />;
         }
     };
 
@@ -33,9 +33,9 @@ const App: React.FC = () => {
             <header className="app-header">
                 <h1 className="app-title">Financial Planning Visualizer</h1>
                 <p className="app-description">
-                    Explore powerful financial concepts through interactive visualizations. 
-                    Understand compound interest, savings strategies, and retirement planning 
-                    to make informed financial decisions for the Indian market context.
+                    Plan your financial future with interactive tools for retirement planning, 
+                    asset allocation, and progress tracking. Values and calculations are 
+                    tailored for the Indian market context.
                 </p>
             </header>
 
@@ -46,11 +46,11 @@ const App: React.FC = () => {
                     onChange={(e) => setSelectedVisualization(e.target.value as VisualizationType)}
                     aria-label="Select visualization"
                 >
-                    <option value="rule-of-72">Rule of 72</option>
-                    <option value="power-of-rate-of-return">Power of Rate of Return</option>
-                    <option value="4-percent-rule">4% Rule</option>
-                    <option value="power-of-savings">Power of Savings</option>
                     <option value="tper">TPER Framework</option>
+                    <option value="rule-of-72">Rule of 72</option>
+                    <option value="power-of-rate-of-return">Returns Matter</option>
+                    <option value="power-of-savings">Power of Savings</option>
+                    <option value="4-percent-rule">4% Rule</option>
                 </select>
                 <span className="select-arrow" aria-hidden="true">▼</span>
             </div>
@@ -60,7 +60,6 @@ const App: React.FC = () => {
             </main>
 
             <footer className="app-footer">
-                <p>Built with React and Chart.js • Optimized for Indian Financial Context</p>
             </footer>
         </div>
     );

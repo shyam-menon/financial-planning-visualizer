@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type VisualizationType = 'none' | 'ruleOf72' | 'rateOfReturn' | 'fourPercentRule' | 'powerOfSavings';
+export type VisualizationType = 'none' | 'tper' | 'ruleOf72' | 'rateOfReturn' | 'powerOfSavings' | 'fourPercentRule';
 
 interface VisualizationSelectorProps {
     selectedVisualization: VisualizationType;
@@ -19,10 +19,11 @@ const VisualizationSelector: React.FC<VisualizationSelectorProps> = ({
                 className="visualization-dropdown"
             >
                 <option value="none">Select a Visualization</option>
+                <option value="tper">TPER Framework</option>
                 <option value="ruleOf72">Rule of 72</option>
-                <option value="rateOfReturn">Power of Rate of Return</option>
-                <option value="fourPercentRule">The 4% Rule</option>
+                <option value="rateOfReturn">Returns Matter</option>
                 <option value="powerOfSavings">Power of Consistent Savings</option>
+                <option value="fourPercentRule">The 4% Rule</option>
             </select>
         </div>
     );

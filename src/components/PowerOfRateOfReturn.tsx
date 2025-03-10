@@ -157,8 +157,8 @@ export const PowerOfRateOfReturn: React.FC = () => {
     };
 
     return (
-        <div className="visualization-container" role="region" aria-label="Power of Rate of Return Calculator">
-            <h2 className="visualization-title">Power of Rate of Return</h2>
+        <div className="visualization-container" role="region" aria-label="Returns Matter Calculator">
+            <h2 className="visualization-title">Returns Matter</h2>
             <p className="visualization-description">
                 See how your wealth can grow exponentially through the power of compound returns. 
                 A higher rate of return can dramatically impact your long-term wealth.
